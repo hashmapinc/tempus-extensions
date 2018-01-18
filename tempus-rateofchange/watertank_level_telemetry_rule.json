@@ -1,0 +1,42 @@
+{
+  "name": "Watertank Level Telemetry Rule",
+  "state": "SUSPENDED",
+  "weight": 0,
+  "pluginToken": "5j2kjl2j008923joksdn2",
+  "filters": [
+    {
+      "configuration": {
+        "messageTypes": [
+          "POST_TELEMETRY"
+        ]
+      },
+      "name": "MsgTypeFilter",
+      "clazz": "org.thingsboard.server.extensions.core.filter.MsgTypeFilter"
+    },
+    {
+      "configuration": {
+        "filter": "typeof cs.deviceType !== 'undefined' && cs.deviceType === 'WaterTank' && typeof cs.tankId !== 'undefined'"
+      },
+      "name": "DeviceTypeFilter",
+      "clazz": "org.thingsboard.server.extensions.core.filter.DeviceAttributesFilter"
+    },
+    {
+      "configuration": {
+        "filter": "typeof waterTankLevel !== 'undefined'"
+      },
+      "name": "TelemetryFilter",
+      "clazz": "org.thingsboard.server.extensions.core.filter.DeviceTelemetryFilter"
+    }
+  ],
+  "processor": null,
+  "action": {
+    "configuration": {
+      "sync": true,
+      "topic": "water-tank-level-data",
+      "template": "{\"tankId\":\"$cs.get('tankId')\", \"ts\":$waterTankLevel.getTs(), \"waterTankLevel\":$waterTankLevel.valueAsString}"
+    },
+    "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
+    "name": "WaterTankLevel"
+  },
+  "additionalInfo": null
+}
