@@ -21,6 +21,6 @@
 
     <modules>
         <module>tempus-rateofchange/ratechange</module>
-        <module>core-extensions/extension-spark-computation</module>
+        <module>tempus-WindSpeedGeoAggregator</module>
     </modules>
 </project>

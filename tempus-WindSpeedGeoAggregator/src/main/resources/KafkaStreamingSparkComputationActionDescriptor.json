@@ -1,6 +1,6 @@
 {
   "schema": {
-    "title": "Sample Spark Job Configuration",
+    "title": "Livy Action Configuration",
     "type": "object",
     "properties": {
       "gatewayApiToken": {
@@ -34,7 +34,6 @@
     },
     "required": [
       "gatewayApiToken",
-      "window",
       "zkUrl",
       "kafkaBrokers",
       "topic",
@@ -45,6 +44,7 @@
   "form": [
     "gatewayApiToken",
     "window",
+    "volume",
     "zkUrl",
     "kafkaBrokers",
     "topic",
