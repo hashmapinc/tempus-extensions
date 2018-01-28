@@ -16,6 +16,7 @@ specific Kafka topics. Spark program reads data off of Kafka topics and pushes d
 ## Getting Started
 
 Copy uber-kudu-store-0.0.1-SNAPSHOT.jar file in spark folder.
+Make sure you have necessary KUDU tables created. Use dbscript file for more details.
 
 ## Usage
 

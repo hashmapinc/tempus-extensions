@@ -1,0 +1,24 @@
+CREATE TABLE kudu_witsml.depth_log (
+   namewell STRING,
+   namewellbore STRING,
+   namelog STRING,
+   mnemonic STRING,
+   depthstring STRING,
+   depth DOUBLE,
+   value DOUBLE,
+   PRIMARY KEY (namewell, namewellbore, namelog, mnemonic, depthstring)
+ )
+ PARTITION BY
+ STORED AS KUDU ;
+
+CREATE TABLE kudu_witsml.time_log (
+   namewell STRING,
+   namewellbore STRING,
+   namelog STRING,
+   mnemonic STRING,
+   ts STRING,
+   value DOUBLE,
+   PRIMARY KEY (namewell, namewellbore, namelog, mnemonic, ts)
+ )
+ PARTITION BY
+ STORED AS KUDU ;
