@@ -19,9 +19,7 @@ A usecase where this is expected to be applicable is when a pump starts pumping 
 
 
 ## Getting Started
-Open a command line and go to a dirctory where you will want to this project to be and clone as under:
-
-	git clone https://github.com/hashmapinc/tempus-rateofchange.git
+You should find uber jar file in the target subfolder.
 
 ## Usage
 
@@ -38,7 +36,7 @@ Go to nifi console and open configuration for GenerateTimeSeriesFlowFile. Ensure
 
 Open configuration for GenerateFlowFile configuration. Set Custom Text to {"deviceType":"WaterTank", "tankId":"123"}
 
-Open a command prompt and change directory to TempusDevEnvionment. Invoke docker ps command and locate spark container. Then invoke docker exec command to go to spark area of the docker image.
+Open a command prompt and change directory to TempusDevEnvionment. Invoke docker ps command and locate nifi container. Then invoke docker exec command to go to spark area of the docker image.
 
 Change directory to /usr/local/configs
 
