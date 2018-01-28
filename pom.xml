@@ -20,6 +20,7 @@
     </properties>
 
     <modules>
+        <module>tempus-kudu-store</module>
         <module>tempus-rateofchange/ratechange</module>
         <module>tempus-WindSpeedGeoAggregator</module>
     </modules>
