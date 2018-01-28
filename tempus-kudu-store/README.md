@@ -1,5 +1,7 @@
 # tempus-kudu-store
-Spark application to store data in Kudu via Impala
+In tempus environment, data in KUDU can be captured via a Spark application with Impala interface. The data from NIFI
+first flows into Thingsboard. With rules configured in Thingsboard, the telemetry and attributes data is published to
+specific Kafka topics. Spark program reads data off of Kafka topics and pushes data into KUDU store.
 
 ## Table of Contents
 
