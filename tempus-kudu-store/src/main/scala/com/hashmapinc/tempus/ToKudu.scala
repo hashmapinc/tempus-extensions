@@ -1,24 +1,15 @@
 package com.hashmapinc.tempus
 
 import org.apache.spark.streaming._
-import org.apache.spark.{SparkConf,SparkContext}
-import org.apache.spark.rdd.RDD
-import org.apache.spark.rdd.EmptyRDD
+import org.apache.spark.{SparkConf}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.DataFrameReader
 
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.streaming.kafka010._
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
 
-import java.sql.DriverManager
-import java.sql.Connection
-import java.sql.PreparedStatement
-import java.util.Properties
-
 import org.apache.log4j.Logger
-import org.apache.log4j.Level
 
 object ToKudu {
   val KUDU_QUICKSTART_CONNECTION_URL = "jdbc:impala://192.168.56.101:21050/kudu_witsml"
@@ -48,7 +39,7 @@ object ToKudu {
     log.info("kafka stream is alright")    
     
     //Stream could be empty but that is perfectly okay
-    val values = stream.map(record => record.value()).map(s=>s.replace("[", "")).map(s=>s.replace("]", "")).flatMap(s=>s.split("%!%"))
+    val values = stream.map(record => record.value()).map(s=>s.trim().replace("[", "")).map(s=>s.replace("]", "")).flatMap(s=>s.split("%!%"))
 
     val records = values.transform(rdd=>{
         if (rdd.isEmpty()) { 
@@ -66,7 +57,7 @@ object ToKudu {
           
           p.foreach(r => {
             val stmt = ImpalaWrapper.getUpsert(con, r)
-            ImpalaWrapper.upsert(stmt, r)
+            ImpalaWrapper.upsert(con, stmt, r)
             stmt.close()
           })
 

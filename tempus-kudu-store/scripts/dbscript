@@ -22,3 +22,19 @@ CREATE TABLE kudu_witsml.time_log (
  )
  PARTITION BY
  STORED AS KUDU ;
+
+CREATE TABLE kudu_witsml.message_log (
+   namewell STRING,
+   namewellbore STRING,
+   typeMessage STRING,
+   ts STRING,
+   value STRING,
+   mdvalue DOUBLE,
+   mduom STRING,
+   mdbitvalue DOUBLE,
+   mdbituom STRING,
+   PRIMARY KEY (namewell, namewellbore, typeMessage, ts)
+ )
+ PARTITION BY
+ STORED AS KUDU ;
+

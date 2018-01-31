@@ -1,6 +1,6 @@
 package com.hashmapinc.tempus
 
-case class DeviceTsDS(id: String, ts: String, value: Double)
+case class DeviceTsDS(id: String, tsds: String, value: String)
 
 trait CaseClasses {
   
