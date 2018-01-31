@@ -1,3 +1,7 @@
+DROP TABLE kudu_witsml.depth_log;
+DROP TABLE kudu_witsml.time_log;
+DROP TABLE kudu_witsml.message_log;
+
 CREATE TABLE kudu_witsml.depth_log (
    namewell STRING,
    namewellbore STRING,
@@ -6,9 +10,10 @@ CREATE TABLE kudu_witsml.depth_log (
    depthstring STRING,
    depth DOUBLE,
    value DOUBLE,
+   value_str STRING,
    PRIMARY KEY (namewell, namewellbore, namelog, mnemonic, depthstring)
  )
- PARTITION BY
+ PARTITION BY HASH(namewell) PARTITIONS 4
  STORED AS KUDU ;
 
 CREATE TABLE kudu_witsml.time_log (
@@ -18,23 +23,10 @@ CREATE TABLE kudu_witsml.time_log (
    mnemonic STRING,
    ts STRING,
    value DOUBLE,
+   value_str STRING,
    PRIMARY KEY (namewell, namewellbore, namelog, mnemonic, ts)
  )
- PARTITION BY
+ PARTITION BY HASH(namewell) PARTITIONS 4
  STORED AS KUDU ;
 
-CREATE TABLE kudu_witsml.message_log (
-   namewell STRING,
-   namewellbore STRING,
-   typeMessage STRING,
-   ts STRING,
-   value STRING,
-   mdvalue DOUBLE,
-   mduom STRING,
-   mdbitvalue DOUBLE,
-   mdbituom STRING,
-   PRIMARY KEY (namewell, namewellbore, typeMessage, ts)
- )
- PARTITION BY
- STORED AS KUDU ;
 

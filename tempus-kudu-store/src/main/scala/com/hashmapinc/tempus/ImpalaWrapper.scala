@@ -15,10 +15,11 @@ object ImpalaWrapper {
   val DEPTHLOG = "DEPTHLOG"
   val TIMELOG  = "TIMELOG"
   val upsertSQLMap = Map(
-        MESSAGELOG -> "UPSERT INTO message_log (nameWell, nameWellbore, typeMessage, ts, value, mdvalue, mduom, mdbitvalue, mdbituom) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        DEPTHLOG -> "UPSERT INTO depth_log (nameWell, nameWellbore, nameLog, mnemonic, depthString, depth, value) values (?, ?, ?, ?, ?, ?, ?)",
-        TIMELOG  -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value) values (?, ?, ?, ?, ?, ?)"
-      )
+        //MESSAGELOG -> "UPSERT INTO message_log (nameWell, nameWellbore, typeMessage, ts, value, mdvalue, mduom, mdbitvalue, mdbituom) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        DEPTHLOG -> "UPSERT INTO depth_log (nameWell, nameWellbore, nameLog, mnemonic, depthString, depth, value, value_str) values (?, ?, ?, ?, ?, ?, ?, ?)",
+        TIMELOG  -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value, value_str) values (?, ?, ?, ?, ?, ?, ?)",
+        MESSAGELOG -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value, value_str) values (?, ?, ?, ?, ?, ?, ?)"
+  )
   var driverLoaded: Boolean = false
   
   val log = Logger.getLogger(ImpalaWrapper.getClass)
@@ -58,6 +59,7 @@ object ImpalaWrapper {
     stmt.setString(4, fields(0))
     stmt.setString(5, sdf.toString())
     stmt.setDouble(6, rec.value.toDouble)
+    stmt.setString(7, rec.value)
     stmt.executeUpdate()
   }
 
@@ -67,6 +69,12 @@ object ImpalaWrapper {
     val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX").format(cal.getTime())
     stmt.setString(1, fields(3))
     stmt.setString(2, fields(2))
+    stmt.setString(3, fields(1))
+    stmt.setString(4, fields(0))
+    stmt.setString(5, sdf.toString())
+    stmt.setDouble(6, 0)
+    stmt.setString(7, rec.value)
+    /*
     stmt.setString(3, fields(0))
     stmt.setString(4, sdf.toString())
     val values=rec.value.split("@")
@@ -75,6 +83,7 @@ object ImpalaWrapper {
     stmt.setString(7, values(2))
     stmt.setDouble(8, values(1).toDouble)
     stmt.setString(9, values(2))
+    */
     stmt.executeUpdate()
   }
 
@@ -90,6 +99,7 @@ object ImpalaWrapper {
     stmt.setString(5, ts)
     stmt.setDouble(6, rec.tsds.toDouble)
     stmt.setDouble(7, rec.value.toDouble)
+    stmt.setString(8, rec.value)
     stmt.executeUpdate()
   }
   
