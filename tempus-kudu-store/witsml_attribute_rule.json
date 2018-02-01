@@ -1,0 +1,28 @@
+{
+  "name": "WITSML Attribute Rule",
+  "state": "ACTIVE",
+  "weight": 0,
+  "pluginToken": "kafka-spark-streaming-sample",
+  "filters": [
+    {
+      "configuration": {
+        "messageTypes": [
+          "POST_ATTRIBUTES"
+        ]
+      },
+      "name": "MsgTypeFilter",
+      "clazz": "org.thingsboard.server.extensions.core.filter.MsgTypeFilter"
+    }
+  ],
+  "processor": null,
+  "action": {
+    "configuration": {
+      "sync": true,
+      "topic": "well-attribute-data",
+      "template": "#if($attrtags.size() > 0) \t\t\n[{\n#foreach ($tag in $attrtags)\n\t\t  \"$tag.key\": \"$tag.ValueAsString\"\n\t\t  #if($velocityCount < $attrtags.size()) , #end\n#end\n                \n}]\n#end "
+    },
+    "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
+    "name": "WITSMlAttributes"
+  },
+  "additionalInfo": null
+}
