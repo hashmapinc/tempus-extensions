@@ -11,6 +11,9 @@ import org.apache.log4j.Level
 import scala.collection.mutable.HashMap
 
 object ImpalaWrapper {
+  val WELLINFO  = "WELLINFO"
+  val WELLBOREINFO  = "WELLBOREINFO"
+  val RIGINFO  = "RIGINFO"
   val MESSAGELOG = "MESSAGELOG"
   val DEPTHLOG = "DEPTHLOG"
   val TIMELOG  = "TIMELOG"
@@ -18,7 +21,10 @@ object ImpalaWrapper {
         //MESSAGELOG -> "UPSERT INTO message_log (nameWell, nameWellbore, typeMessage, ts, value, mdvalue, mduom, mdbitvalue, mdbituom) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         DEPTHLOG -> "UPSERT INTO depth_log (nameWell, nameWellbore, nameLog, mnemonic, depthString, depth, value, value_str) values (?, ?, ?, ?, ?, ?, ?, ?)",
         TIMELOG  -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value, value_str) values (?, ?, ?, ?, ?, ?, ?)",
-        MESSAGELOG -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value, value_str) values (?, ?, ?, ?, ?, ?, ?)"
+        MESSAGELOG -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value, value_str) values (?, ?, ?, ?, ?, ?, ?)",
+        WELLINFO  -> "UPSERT INTO well_tempus (namewell, operator, state, county, country, timezone, numapi, statuswell, dtimspud,ekey,well_government_id,loadtime) values (?,?,?,?,?,?,?,?,?,?,?,?)",
+        WELLBOREINFO  -> "UPSERT INTO wellbore_tempus (namewell,namewellbore,statuswellbore,loadtime) values (?,?,?,?)",
+        RIGINFO  -> "UPSERT INTO rig_tempus (namewell,namewellbore,namerig,ownerrig,dtimstartop,loadtime) values (?,?,?,?,?,?)"
   )
   var driverLoaded: Boolean = false
   
@@ -116,4 +122,126 @@ object ImpalaWrapper {
       upsertMessageLog(stmt, rec, fields)
     }
   }
+
+  def upsertAttributeInfo(con: Connection, rec: DeviceAttribute) = {
+    val wellName = rec.nameWell
+    val wellboreName = rec.nameWellbore
+    val rigName = rec.nameRig
+    val timeZone = rec.timeZone
+    val statusWell = rec.statusWell
+
+    if(!wellName.isEmpty && !timeZone.isEmpty && !statusWell.isEmpty){
+      var wellInfo = "WELLINFO";
+      val stmt =  con.prepareStatement(upsertSQLMap.getOrElse(wellInfo, null))
+      upsertWellInfo(stmt, rec)
+    }
+
+    if(!wellboreName.isEmpty){
+      var wellboreInfo = "WELLBOREINFO";
+      val stmt =  con.prepareStatement(upsertSQLMap.getOrElse(wellboreInfo, null))
+      upsertWellboreInfo(stmt, rec)
+    }
+
+    if(!rigName.isEmpty){
+      var rigInfo = "RIGINFO";
+      val stmt =  con.prepareStatement(upsertSQLMap.getOrElse(rigInfo, null))
+      upsertRigInfo(stmt, rec)
+    }
+
+  }
+
+  def upsertWellInfo(stmt: PreparedStatement, deviceAttr: DeviceAttribute): Unit = {
+    //UPSERT INTO well_tempus (namewell, operator, state, county, country, timezone, numapi, statuswell,ekey,well_govt_id, dtimspud) values (?,?,?,?,?,?,?,?,,?,?,?)
+     if(stmt != null){
+       stmt.setString(1, deviceAttr.nameWell)
+       stmt.setString(2, deviceAttr.operator)
+       stmt.setString(3, deviceAttr.state)
+       stmt.setString(4, deviceAttr.county)
+       stmt.setString(5, deviceAttr.country)
+       stmt.setString(6, deviceAttr.timeZone)
+       stmt.setString(7, deviceAttr.numAPI)
+       stmt.setString(8, deviceAttr.statusWell)
+       stmt.setString(9, deviceAttr.dtimSpud)
+       stmt.setString(10, deviceAttr.ekey)
+       stmt.setString(11, deviceAttr.govtWellId)
+       stmt.setString(12,getCurrentTime)
+       try{
+         stmt.executeUpdate()
+       }catch{
+         case exp: Exception => log.error(" Error while populating Well data => "+exp.printStackTrace())
+       }
+     }
+  }
+  def upsertWellboreInfo(stmt: PreparedStatement, wellboreInfo: DeviceAttribute): Unit = {
+    //UPSERT INTO wellbore_tempus (namewell,namewellbore,statuswellbore) values (?,?,?)
+
+    if(stmt != null && !wellboreInfo.nameWellbore.isEmpty && !wellboreInfo.nameWell.isEmpty){
+      stmt.setString(1, wellboreInfo.nameWell)
+      stmt.setString(2, wellboreInfo.nameWellbore)
+      stmt.setString(3, wellboreInfo.statusWellbore)
+      stmt.setString(4,getCurrentTime)
+
+      try{
+        stmt.executeUpdate()
+      }catch{
+        case exp: Exception => log.error(" Error while populating Wellbore data => "+exp.printStackTrace())
+      }
+    }
+
+  }
+
+  def upsertRigInfo(stmt: PreparedStatement, rigInfo: DeviceAttribute): Unit = {
+    //UPSERT INTO rig_tempus (namewell,namewellbore,namerig,ownerrig,dtimstartop) values (?,?,?,?,?)
+
+    if(stmt != null && !rigInfo.nameWellbore.isEmpty && !rigInfo.nameWell.isEmpty && !rigInfo.nameRig.isEmpty){
+
+      stmt.setString(1, rigInfo.nameWell)
+      stmt.setString(2, rigInfo.nameWellbore)
+      stmt.setString(3, rigInfo.nameRig)
+      stmt.setString(4, rigInfo.owner)
+      stmt.setString(5, rigInfo.dtimStartOp)
+      stmt.setString(6,getCurrentTime)
+
+
+      try{
+        stmt.executeUpdate()
+      }catch{
+        case exp: Exception => log.error(" Error while populating Rig data => "+exp.printStackTrace())
+      }
+    }
+  }
+
+  /**
+    * Parse Long time to ISO date format
+    * @param longTime
+    * @return
+    */
+  def formatTime(longTime : String) : String  = {
+    var formatTime :String = null
+    try{
+
+      val cal = java.util.Calendar.getInstance()
+      cal.setTimeInMillis(longTime.toLong)
+      val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(cal.getTime)
+      formatTime  = sdf.toString
+
+    }catch{
+      case exp: Exception => exp.printStackTrace()
+    }
+
+    formatTime
+  }
+
+  /**
+    * Retrieve Current Time
+    * @return
+    */
+  def getCurrentTime : String = {
+    val cal = java.util.Calendar.getInstance()
+    val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(cal.getTime())
+    var currentDate : String = sdf.toString
+    currentDate
+  }
+
+
 }

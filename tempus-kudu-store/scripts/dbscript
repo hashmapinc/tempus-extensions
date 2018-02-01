@@ -30,3 +30,44 @@ CREATE TABLE kudu_witsml.time_log (
  STORED AS KUDU ;
 
 
+create table kudu_witsml.well_tempus
+(
+namewell string,
+operator string,
+state string,
+county string,
+country string,
+timezone string,
+numapi string,
+statuswell string,
+dtimspud string,
+ekey string,
+well_government_id string,
+loadtime string,
+primary key (namewell)
+)
+partition by hash(namewell) partitions 2 stored as KUDU;
+
+
+create table kudu_witsml.wellbore_tempus
+(
+namewell string,
+namewellbore string,
+statuswellbore string,
+loadtime string,
+primary key (namewell)
+)
+partition by hash(namewell) partitions 2 stored as KUDU;
+
+
+create table kudu_witsml.rig_tempus
+(
+namewell string,
+namerig string,
+namewellbore string,
+ownerrig string,
+dtimstartop string,
+loadtime string,
+primary key (namewell,namerig)
+)
+partition by hash(namewell,namerig) partitions 2 stored as KUDU;
