@@ -16,12 +16,13 @@ specific Kafka topics. Spark program reads data off of Kafka topics and pushes d
 ## Getting Started
 
 Copy uber-kudu-store-0.0.1-SNAPSHOT.jar file in spark folder.
+Copy kudu_witsml.properties file in spark folder. Update the database connection details in this file.
 Make sure you have necessary KUDU tables created. Use dbscript file for more details.
 
 ## Usage
 
     spark-submit --master local[*] --class com.hashmapinc.tempus.ToKudu uber-kudu-store-0.0.1-SNAPSHOT.jar kafka:9092 well-log-ds-data,well-log-ts-data jdbc:impala://192.168.56.101:21050/kudu_witsml demo demo INFO
-    spark-submit --master local[*] --class com.hashmapinc.tempus.AttributesToKudu uber-kudu-store-0.0.1-SNAPSHOT.jar kafka:9092 well-attribute-data jdbc:impala://192.168.56.101:21050/kudu_witsml demo demo INFO
+    spark-submit --master local[*] --class com.hashmapinc.tempus.AttributesToKudu uber-kudu-store-0.0.1-SNAPSHOT.jar
 
 
 ## Known limitations

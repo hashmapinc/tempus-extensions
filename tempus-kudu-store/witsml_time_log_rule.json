@@ -1,6 +1,6 @@
 {
-  "name": "WITSML time log Rule",
-  "state": "ACTIVE",
+  "name": "Well time log Rule",
+  "state": "SUSPENDED",
   "weight": 0,
   "pluginToken": "kafka-spark-streaming-sample",
   "filters": [
@@ -18,8 +18,8 @@
   "action": {
     "configuration": {
       "sync": true,
-      "topic": "well-log-data",
-      "template": "#if($tags.size() > 0)\n\t[\n\t\t#foreach ($tag in $tags)\n\t\t  {\"id\": \"TIMELOG:$tag.key@$cs.nameWellbore@$cs.nameWell\", \"ts\": \"$tag.ts\", \"value\": $tag.valueAsString}\n\t\t  #if($velocityCount < $tagsVar.size())%!% #end\n\t\t#end\n\t]\n#end"
+      "topic": "well-log-ts-data",
+      "template": "#if($tags.size() > 0)\n\t[\n\t\t#foreach ($tag in $tags)\n#if($tag.key==\"Message\")\n#if($velocityCount < $tags.size())%!%#end\n#end\n#if($tag.key!=\"Message\")\n\t\t  {\"id\": \"TIMELOG:$tag.key@$cs.nameWellbore@$cs.nameWell\", \"tsds\": \"$tag.ts\", \"value\": $tag.valueAsString}\n\t\t  #if($velocityCount < $tags.size())%!%#end\n\t\t#end\n\t]\n#end\n#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WellTimeLog"

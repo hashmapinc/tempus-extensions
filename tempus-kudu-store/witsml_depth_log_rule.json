@@ -1,6 +1,6 @@
 {
-  "name": "Witsml depth log Rule",
-  "state": "ACTIVE",
+  "name": "Well depth log Rule",
+  "state": "SUSPENDED",
   "weight": 0,
   "pluginToken": "kafka-spark-streaming-sample",
   "filters": [
@@ -18,8 +18,8 @@
   "action": {
     "configuration": {
       "sync": true,
-      "topic": "well-log-data",
-      "template": "#if($tags.size() > 0)\n\t[\n\t\t#foreach ($tag in $tags)\n\t\t  {\"id\": \"DEPTHLOG:$tag.key@$cs.nameWellbore@$cs.nameWell\", \"ts\": \"$tag.ds\", \"value\": $tag.valueAsString}\n\t\t  #if($velocityCount < $tagsVar.size())%!% #end\n\t\t#end\n\t]\n#end"
+      "topic": "well-log-ds-data",
+      "template": "#if($tags.size() > 0)\n\t[\n\t\t#foreach ($tag in $tags)\n\t\t  {\"id\": \"DEPTHLOG:$tag.key@$cs.nameWellbore@$cs.nameWell\", \"tsds\": \"$tag.ds\", \"value\": $tag.valueAsString}\n\t\t  #if($velocityCount < $tags.size())%!%#end\n\t\t#end\n\t]\n#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WellDepthLog"
