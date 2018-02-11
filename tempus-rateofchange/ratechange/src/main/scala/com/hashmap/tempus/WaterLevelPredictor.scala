@@ -5,23 +5,26 @@ import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.streaming.kafka010._
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
-
 import org.apache.spark.streaming._
-import org.apache.spark.{SparkConf,SparkContext}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
-
-import org.eclipse.paho.client.mqttv3.{MqttConnectOptions,MqttAsyncClient,IMqttActionListener,MqttMessage,MqttException,IMqttToken}
+import org.eclipse.paho.client.mqttv3.{IMqttActionListener, IMqttToken, MqttAsyncClient, MqttConnectOptions, MqttException, MqttMessage}
 import java.nio.charset.StandardCharsets
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
-
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
+
+import scala.util.parsing.json.{JSON, JSONObject}
 
 case class WaterTankLevelDataSet(tankId: String, ts: Long, waterTankLevel: Double)
 
 object WaterLevelPredictor {
+  val TANKID="tankId"
+  val TS="ts"
+  val WATERTANKLEVEL="waterTankLevel"
   val log = Logger.getLogger(WaterLevelPredictor.getClass)
   
   def main(args: Array[String]): Unit = {
@@ -38,7 +41,7 @@ object WaterLevelPredictor {
      "bootstrap.servers" -> args(1), //"kafka:9092",
      "key.deserializer" -> classOf[StringDeserializer],
      "value.deserializer" -> classOf[StringDeserializer],
-     "group.id" -> "DEFAULT_GROUP_ID",
+     "group.id" -> args(2), //"DEFAULT_GROUP_ID",
      "auto.offset.reset" -> "latest",
      "enable.auto.commit" -> (false: java.lang.Boolean)
     )
@@ -61,19 +64,11 @@ object WaterLevelPredictor {
     assert((stream != null), ERROR("Kafka stream is not available. Check your Kafka setup."))
     
     //Stream could be empty but that is perfectly okay
-    val values = stream.map(record => record.value())
-    val records = values.transform(rdd=>{
-        if (rdd.isEmpty()) { 
-          rdd
-        } else {
-          val ds=spark.read.json(rdd).as[WaterTankLevelDataSet]
-          ds.map(r=>r.tankId+","+r.ts+","+r.waterTankLevel).rdd
-        }
-    })
-      
+    val values  = stream.map(_.value()).map(stringize(_)).filter(_.length>0)
+
     //At this point in time, records is expected to have 0 or more elements
     //in each batch of RDDs for the specified any number of tanks and so let us consolidate by tankId
-    val result = records.map(r => (r.split(",")(0), r))
+    val result = values.map(r => (r.split(",")(0), r))
                         .reduceByKeyAndWindow((r1:String, r2:String)=>if (r1.length()>0 && r2.length()>0) r1+","+r2 else r1+r2, winSize, winSize)
                         .map(r=>(r._1, getRunningAverage(r._2)))
     
@@ -137,7 +132,17 @@ object WaterLevelPredictor {
     }
     eta
   }
-  
+
+  def stringize(record: String): String= {
+    var json = JSON.parseRaw(record).getOrElse(null)
+    var result=""
+    if (json!=null) {
+      val map = json.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
+      result = s"${map(TANKID)},${map(TS)},${map(WATERTANKLEVEL)}"
+    }
+    result
+  }
+
   def INFO(s: String): Unit={
     if (log.isInfoEnabled()) {
       log.info(s)

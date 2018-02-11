@@ -40,7 +40,7 @@ object WaterLevelPredictorAM {
      "bootstrap.servers" -> args(1), //"kafka:9092",
      "key.deserializer" -> classOf[StringDeserializer],
      "value.deserializer" -> classOf[StringDeserializer],
-     "group.id" -> "DEFAULT_GROUP_ID",
+     "group.id" -> args(2), //"DEFAULT_GROUP_ID",
      "auto.offset.reset" -> "latest",
      "enable.auto.commit" -> (false: java.lang.Boolean)
     )
