@@ -2,7 +2,7 @@ package com.hashmapinc.opcMonitor
 
 object Config {
   // general configs
-  val context = "production"
+  var context = "production"
 
   // MQTT configs
 
@@ -11,7 +11,10 @@ object Config {
   /**
    * This function sets the configs to test values
    */
-  def initTestContext {
+  def initTestContext: Unit = {
+    // general configs
+    context = "test"
+
     // MQTT configs
 
     // OPC configs
