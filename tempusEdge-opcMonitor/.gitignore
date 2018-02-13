@@ -1,2 +1,6 @@
+# local dev folders
 target
+.ensime_cache
+
+# local dev files
 **/*.ensime
