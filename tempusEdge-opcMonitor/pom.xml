@@ -38,6 +38,12 @@
       <artifactId>scala-logging_2.12</artifactId>
       <version>3.7.2</version>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.25</version>
+    </dependency>
+
 
     <!-- Test -->
     <dependency>
@@ -49,13 +55,13 @@
     <dependency>
       <groupId>org.specs2</groupId>
       <artifactId>specs2-core_${scala.compat.version}</artifactId>
-      <version>2.4.16</version>
+      <version>4.0.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.compat.version}</artifactId>
-      <version>2.2.4</version>
+      <version>3.0.5</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
