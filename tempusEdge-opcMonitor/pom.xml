@@ -7,6 +7,7 @@
   <description>ioFog edge application for monitoring OPC servers and reporting to Tempus through MQTT</description>
   <inceptionYear>2018</inceptionYear>
 
+
   <properties>
     <maven.compiler.source>1.6</maven.compiler.source>
     <maven.compiler.target>1.6</maven.compiler.target>
@@ -14,6 +15,7 @@
     <scala.version>2.11.5</scala.version>
     <scala.compat.version>2.11</scala.compat.version>
   </properties>
+
 
   <dependencies>
     <dependency>
@@ -25,6 +27,11 @@
       <groupId>org.eclipse.milo</groupId>
       <artifactId>sdk-client</artifactId>
       <version>0.2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.paho</groupId>
+      <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+      <version>1.2.0</version>
     </dependency>
 
     <!-- Test -->
@@ -48,9 +55,12 @@
     </dependency>
   </dependencies>
 
+
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
+
+
     <plugins>
       <plugin>
         <!-- see http://davidb.github.com/scala-maven-plugin -->
@@ -72,6 +82,7 @@
           </execution>
         </executions>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -87,6 +98,14 @@
           </includes>
         </configuration>
       </plugin>
+
+      <plugin>
+        <groupId>org.ensime.maven.plugins</groupId>
+        <artifactId>ensime-maven</artifactId>
+        <version>1.3.0</version>
+      </plugin>
     </plugins>
+
+
   </build>
 </project>
