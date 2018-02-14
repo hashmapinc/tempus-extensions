@@ -18,7 +18,7 @@ case class IofogConfig(
   authToken: String)
 
 /**
- * This object is responsible
+ * This object is responsible for holding and updating opcMonitor configurations
  */
 object Config {
   var context = "production"
@@ -28,16 +28,42 @@ object Config {
   log.info("Setting default configs")
 
   /**
+   * This function updates the configs
+   */
+  def update(
+    newConfig: IofogConfig): Unit = {
+    log.info("Updating config")
+    log.debug("newConfig: " + newConfig.toString)
+
+    context = "production"
+
+    //update configs
+    iofogConfig = Option(newConfig)
+  }
+
+  /**
    * This function sets the configs to test values
    */
   def initTestContext(
     testConfig: IofogConfig): Unit = {
     log.info("Setting test configs")
+    log.debug("testConfig: " + testConfig.toString)
 
-    // general configs
     context = "test"
 
     //update configs
     iofogConfig = Option(testConfig)
+  }
+
+  /**
+   * This function resets the configs to default values
+   */
+  def reset: Unit = {
+    log.info("Reseting config")
+
+    context = "production"
+
+    //update configs
+    iofogConfig = None
   }
 }
