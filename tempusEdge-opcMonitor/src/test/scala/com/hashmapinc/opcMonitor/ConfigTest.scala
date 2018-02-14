@@ -12,9 +12,21 @@ class ConfigTest extends FlatSpec {
   }
 
   it should "be 'test' after initializing the test context" in {
-    Config.initTestContext
+    Config.initTestContext(null)
     val testContext = "test"
     assert(Config.context == testContext)
-  }
+  }//==========================================================================
+
+
   //===========================================================================
+  // Test the update functionality 
+  //===========================================================================
+  "Config" should "start with no config" in {
+    assert(!Config.iofogConfig.isDefined)
+  }
+
+  it should "have configs after being assigned configs" in {
+    //TODO: Implement this
+    assert(true)
+  }//==========================================================================
 }

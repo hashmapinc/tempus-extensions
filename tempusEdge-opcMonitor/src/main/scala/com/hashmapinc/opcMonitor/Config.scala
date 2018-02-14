@@ -2,13 +2,27 @@ package com.hashmapinc.opcMonitor
 
 import com.typesafe.scalalogging.Logger
 
-object Config {
-  // general configs
-  var context = "production"
+/**
+ *  Case class for structuring incoming iofog JSON configurations.
+ */
+case class IofogConfig(
+  // OPC configs 
+  opcHost: String,
+  opcPort: Int,
 
   // MQTT configs
+  mqttHost: String,
+  mqttPort: Int,
+  mqttTopic: String,
 
-  // OPC configs 
+  authToken: String)
+
+/**
+ * This object is responsible
+ */
+object Config {
+  var context = "production"
+  var iofogConfig: Option[IofogConfig] = None
 
   val log = Logger(getClass())
   log.info("Setting default configs")
@@ -16,14 +30,14 @@ object Config {
   /**
    * This function sets the configs to test values
    */
-  def initTestContext: Unit = {
+  def initTestContext(
+    testConfig: IofogConfig): Unit = {
     log.info("Setting test configs")
-    
+
     // general configs
     context = "test"
 
-    // MQTT configs
-
-    // OPC configs
+    //update configs
+    iofogConfig = Option(testConfig)
   }
 }
