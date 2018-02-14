@@ -3,6 +3,17 @@
     "title": "Rate of change Spark Job Configuration",
     "type": "object",
     "properties": {
+      "host": {
+        "title": "Computation Host",
+        "type": "string"
+      },
+      "port": {
+        "title": "Computation Port",
+        "type": "integer",
+        "default": 8998,
+        "minimum": 0,
+        "maximum": 65536
+      },
       "window": {
         "title": "Sliding Window (In Minutes)",
         "type": "integer"
@@ -35,17 +46,6 @@
         "title": "Debug Level",
         "type": "string"
       },
-      "host": {
-        "title": "Host",
-        "type": "string"
-      },
-      "port": {
-        "title": "Port",
-        "type": "integer",
-        "default": 8080,
-        "minimum": 0,
-        "maximum": 65536
-      },
       "headers": {
         "title": "Request Headers",
         "type": "array",
@@ -74,11 +74,12 @@
       "highWaterMark",
       "gatewayAccessToken",
       "host",
-      "port",
-      "headers"
+      "port"
     ]
   },
   "form": [
+    "host",
+    "port",
     "window",
     "kafkaUrl",
     "kafkaTopic",
@@ -86,8 +87,6 @@
     "mqttUrl",
     "highWaterMark",
     "gatewayAccessToken",
-    "host",
-    "port",
     "headers",
     "debugLevel"
   ]
