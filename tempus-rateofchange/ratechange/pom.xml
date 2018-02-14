@@ -122,6 +122,11 @@
 			<artifactId>breeze_${scala.compat.version}</artifactId>
 			<version>0.13.2</version>
 		</dependency>
+		<dependency>
+			<groupId>com.hashmapinc.tempus</groupId>
+			<artifactId>tempus-spark-annotations</artifactId>
+			<version>0.2.1</version>
+		</dependency>
 	</dependencies>
 
 	<build>

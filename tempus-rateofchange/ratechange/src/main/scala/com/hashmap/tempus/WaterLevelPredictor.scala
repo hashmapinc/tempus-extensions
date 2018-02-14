@@ -14,12 +14,20 @@ import java.nio.charset.StandardCharsets
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.hashmap.tempus.annotations.SparkRequest
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 
 import scala.util.parsing.json.{JSON, JSONObject}
 
 case class WaterTankLevelDataSet(tankId: String, ts: Long, waterTankLevel: Double)
+
+@SparkRequest(main = "com.hashmap.tempus.WaterLevelPredictor", jar = "uber-ratechange-0.0.1-SNAPSHOT.jar",
+  name="Water level predictor basic", descriptor="WaterLevelPredictorActionDescriptor.json",
+  args = Array("mqttUrl","kafkaUrl","kafkaTopic",
+    "highWaterMark","window", "gatewayAccessToken",
+    "debugLevel"))
+class WaterLevelPredictor
 
 object WaterLevelPredictor {
   val TANKID="tankId"
