@@ -10,19 +10,24 @@ import com.hashmapinc.opcMonitor.Config
  */
 object IofogConnection {
   val log = Logger(getClass())
-  log.info("Creating iofog connection")
 
   val client = new IOFogClient("", 0, Config.CONTAINER_ID) //use default values for client
   
-  try {
-    client.openControlWebSocket(IofogController);
-  } catch {
-    case e: Exception => log.error("IoFog websocket error: " + e.toString)
-  }
+  /**
+   * This function connects the web socket logic to the web socket events
+   */
+  def connect: Unit = {
+    log.info("Creating iofog connection")
+    try {
+      client.openControlWebSocket(IofogController);
+    } catch {
+      case e: Exception => log.error("IoFog websocket error: " + e.toString)
+    }
 
-  try {
-    client.openMessageWebSocket(IofogController);
-  } catch {
-    case e: Exception => log.error("IoFog websocket error: " + e.toString)
+    try {
+      client.openMessageWebSocket(IofogController);
+    } catch {
+      case e: Exception => log.error("IoFog websocket error: " + e.toString)
+    }
   }
 }
