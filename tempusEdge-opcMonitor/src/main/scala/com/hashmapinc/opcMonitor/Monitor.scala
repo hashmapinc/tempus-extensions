@@ -14,10 +14,6 @@ import com.hashmapinc.opcMonitor.opc.OpcController
 object Monitor {
   val log = Logger(getClass())
 
-  def foo(x: Array[String]) = x.foldLeft("")((a, b) => a + b)
-
-  def testable(a: Int, b: Int): Int = a + b
-
   def main(
     args: Array[String]
   ): Unit = {
