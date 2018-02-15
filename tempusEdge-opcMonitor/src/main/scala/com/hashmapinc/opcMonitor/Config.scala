@@ -15,43 +15,48 @@ case class IofogConfig(
   mqttPort: Int,
   mqttTopic: String,
 
-  authToken: String)
+  authToken: String
+)
+
 
 /**
  * This object is responsible for holding and updating opcMonitor configurations
  */
 object Config {
+  val log = Logger(getClass())
+
+  //Set default configs
+  log.info("Setting default configs")
   var context = "production"
   var iofogConfig: Option[IofogConfig] = None
-
-  val log = Logger(getClass())
-  log.info("Setting default configs")
 
   /**
    * This function updates the configs
    */
   def update(
-    newConfig: IofogConfig): Unit = {
-    log.info("Updating config")
+    newConfig: IofogConfig
+  ): Unit = {
+    log.info("Updating configs")
     log.debug("newConfig: " + newConfig.toString)
 
-    context = "production"
-
     //update configs
+    context = "production"
     iofogConfig = Option(newConfig)
   }
 
   /**
    * This function sets the configs to test values
+   * 
+   * @param testConfig - IofogConfig instance with configuration to use
    */
   def initTestContext(
-    testConfig: IofogConfig): Unit = {
+    testConfig: IofogConfig
+  ): Unit = {
     log.info("Setting test configs")
     log.debug("testConfig: " + testConfig.toString)
 
-    context = "test"
-
     //update configs
+    context = "test"
     iofogConfig = Option(testConfig)
   }
 
@@ -59,11 +64,10 @@ object Config {
    * This function resets the configs to default values
    */
   def reset: Unit = {
-    log.info("Reseting config")
-
-    context = "production"
+    log.info("Reseting configs")
 
     //update configs
+    context = "production"
     iofogConfig = None
   }
 }
