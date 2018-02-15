@@ -6,3 +6,6 @@ target
 **/*.ensime
 **/*.ensime-langserver.log
 **/pc.stdout.log
+**/.classpath
+**/.project
+**/.settings
