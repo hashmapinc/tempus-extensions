@@ -36,6 +36,7 @@ object Config {
   log.info("Setting default configs")
   var context = "production"
   var iofogConfig: Option[IofogConfig] = None
+  val CONTAINER_ID = System.getenv("SELFNAME")
 
   /**
    * This function updates the configs
