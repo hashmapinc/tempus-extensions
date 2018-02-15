@@ -1,6 +1,7 @@
 package com.hashmapinc.opcMonitor
 
 import com.typesafe.scalalogging.Logger
+import play.api.libs.json.Json
 
 /**
  *  Case class for structuring incoming iofog JSON configurations.
@@ -17,6 +18,12 @@ case class IofogConfig(
 
   authToken: String
 )
+object IofogConfig {
+  // define implicit config reader for json to case-class conversion
+  // https://www.playframework.com/documentation/2.6.x/ScalaJsonAutomated
+  implicit val iofConfigReader = Json.reads[IofogConfig]
+}
+
 
 
 /**
