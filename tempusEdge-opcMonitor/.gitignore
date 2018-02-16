@@ -1,8 +1,6 @@
-# local dev folders
 target
-.ensime_cache
-
-# local dev files
+build
+**/.ensime_cache
 **/*.ensime
 **/*.ensime-langserver.log
 **/pc.stdout.log
@@ -10,3 +8,5 @@ target
 **/.project
 **/.settings
 **/.vscode
+cleanEnsime.sh
+deployImage.sh
