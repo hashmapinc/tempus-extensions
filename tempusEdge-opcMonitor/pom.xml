@@ -80,6 +80,7 @@
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
+    <directory>build</directory>
 
     <plugins>
       <plugin>
@@ -142,11 +143,17 @@
           <!-- put your configurations here -->
           <createDependencyReducedPom>false</createDependencyReducedPom>
           <finalName>opcMonitor-uber</finalName>
+          <minimizeJar>true</minimizeJar>
           <transformers>
             <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
               <mainClass>com.hashmapinc.opcMonitor.Monitor</mainClass>
             </transformer>
           </transformers>
+          <!--artifactSet>
+            <excludes>
+              <exclude>com.iotracks</exclude>
+            </excludes>
+          </artifactSet-->
           <filters>
             <filter>
               <artifact>*:*</artifact>
