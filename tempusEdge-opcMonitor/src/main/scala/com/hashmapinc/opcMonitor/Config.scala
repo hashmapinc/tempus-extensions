@@ -25,31 +25,37 @@ object IofogConfig {
 }
 
 
-
 /**
  * This object is responsible for holding and updating opcMonitor configurations
  */
 object Config {
-  val log = Logger(getClass())
+  private val log = Logger(getClass())
 
   //Set default configs
   log.info("Setting default configs")
   var context = "production"
   var iofogConfig: Option[IofogConfig] = None
-  val CONTAINER_ID = System.getenv("SELFNAME")
+
+  //get container ID
+  private val selfname = System.getenv("SELFNAME")
+  val CONTAINER_ID = if(selfname == null) "" else selfname
 
   /**
    * This function updates the configs
+   * 
+   * @param newConfig - IofogConfig case class object holding new config values
    */
   def update(
     newConfig: IofogConfig
   ): Unit = {
     log.info("Updating configs")
-    log.debug("newConfig: " + newConfig.toString)
+    log.info("newConfig: " + newConfig.toString)
 
     //update configs
-    context = "production"
-    iofogConfig = Option(newConfig)
+    this.synchronized {
+      context = "production"
+      iofogConfig = Option(newConfig)
+    }
   }
 
   /**
@@ -61,11 +67,13 @@ object Config {
     testConfig: IofogConfig
   ): Unit = {
     log.info("Setting test configs")
-    log.debug("testConfig: " + testConfig.toString)
+    log.info("testConfig: " + testConfig.toString)
 
     //update configs
-    context = "test"
-    iofogConfig = Option(testConfig)
+    this.synchronized {
+      context = "test"
+      iofogConfig = Option(testConfig)
+    }
   }
 
   /**
@@ -75,7 +83,9 @@ object Config {
     log.info("Reseting configs")
 
     //update configs
-    context = "production"
-    iofogConfig = None
+    this.synchronized {
+      context = "production"
+      iofogConfig = None
+    }
   }
 }

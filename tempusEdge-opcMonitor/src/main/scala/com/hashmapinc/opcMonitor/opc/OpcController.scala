@@ -8,6 +8,6 @@ import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy
 import com.typesafe.scalalogging.Logger
 
 object OpcController {
-  val logger = Logger(getClass())
+  private val logger = Logger(getClass())
 
 }

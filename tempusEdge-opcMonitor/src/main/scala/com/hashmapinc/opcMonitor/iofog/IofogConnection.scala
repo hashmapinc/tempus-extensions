@@ -9,7 +9,7 @@ import com.hashmapinc.opcMonitor.Config
  * This object creates and manages the iofog connection.
  */
 object IofogConnection {
-  val log = Logger(getClass())
+  private val log = Logger(getClass())
 
   val client = new IOFogClient("", 0, Config.CONTAINER_ID) //use default values for client
   
