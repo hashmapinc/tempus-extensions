@@ -11,7 +11,7 @@ import com.hashmapinc.opcMonitor.{IofogConfig, Config}
 /**
  * This object holds the async logic for handling iofog events
  */
-object IofogController extends IOFogAPIListener {
+class IofogController extends IOFogAPIListener {
   private val log = Logger(getClass())
 
   /**

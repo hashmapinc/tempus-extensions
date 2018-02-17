@@ -9,14 +9,7 @@ import play.api.libs.json.Json
 case class IofogConfig(
   // OPC configs 
   opcHost: String,
-  opcPort: Int,
-
-  // MQTT configs
-  mqttHost: String,
-  mqttPort: Int,
-  mqttTopic: String,
-
-  authToken: String
+  opcPort: Int
 )
 object IofogConfig {
   // define implicit config reader for json to case-class conversion

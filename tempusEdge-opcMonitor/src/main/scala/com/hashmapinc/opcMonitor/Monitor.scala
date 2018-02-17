@@ -16,12 +16,6 @@ object Monitor {
     args: Array[String]
   ): Unit = {
     log.info("Starting Monitor")
-
-    //get initial config
-    while(!Config.iofogConfig.isDefined) {
-      log.info("Requesting config from iofog...")
-      IofogConnection.client.fetchContainerConfig(IofogController)
-    }
     
     log.info("Connecting to iofog...")
     IofogConnection.connect
