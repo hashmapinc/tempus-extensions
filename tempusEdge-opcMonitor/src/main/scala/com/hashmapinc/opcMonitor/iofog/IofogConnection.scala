@@ -19,13 +19,12 @@ object IofogConnection {
   def connect: Unit = {
     log.info("Creating iofog connection")
     try {
-      client.openControlWebSocket(IofogController);
+      client.openMessageWebSocket(IofogController)
     } catch {
       case e: Exception => log.error("IoFog websocket error: " + e.toString)
     }
-
     try {
-      client.openMessageWebSocket(IofogController);
+      client.openControlWebSocket(IofogController)
     } catch {
       case e: Exception => log.error("IoFog websocket error: " + e.toString)
     }

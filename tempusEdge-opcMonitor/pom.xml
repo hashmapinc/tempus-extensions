@@ -29,11 +29,6 @@
       <version>0.2.0</version>
     </dependency>
     <dependency>
-      <groupId>org.eclipse.paho</groupId>
-      <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
-      <version>1.2.0</version>
-    </dependency>
-    <dependency>
       <groupId>com.typesafe.scala-logging</groupId>
       <artifactId>scala-logging_2.12</artifactId>
       <version>3.7.2</version>

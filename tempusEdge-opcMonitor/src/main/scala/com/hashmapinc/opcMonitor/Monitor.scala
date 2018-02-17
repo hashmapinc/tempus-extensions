@@ -26,6 +26,10 @@ object Monitor {
     log.info("Connecting to iofog...")
     IofogConnection.connect
     log.info("iofog connection was successful. Listening...")
-  }
 
+    while(true) {
+      Thread.sleep(5000L)
+      println(Config.iofogConfig)
+    }
+  }
 }
