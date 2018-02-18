@@ -15,54 +15,32 @@ class ConfigTest extends FlatSpec {
   it should "accept and retain updates" in {
     val opcHost = "opcHost"
     val opcPort = 80
-    val mqttHost = "mqttHost"
-    val mqttPort = 80
-    val mqttTopic = "mqttTopic"
-    val authToken = "authToken"
 
     val newConfig = new IofogConfig(
       opcHost,
-      opcPort,
-      mqttHost,
-      mqttPort,
-      mqttTopic,
-      authToken)
+      opcPort
+    )
 
     Config.update(newConfig)
 
     assert(Config.iofogConfig.get.opcHost == opcHost)
     assert(Config.iofogConfig.get.opcPort == opcPort)
-    assert(Config.iofogConfig.get.mqttHost == mqttHost)
-    assert(Config.iofogConfig.get.mqttPort == mqttPort)
-    assert(Config.iofogConfig.get.mqttTopic == mqttTopic)
-    assert(Config.iofogConfig.get.authToken == authToken)
     assert(Config.context == "production")
   }
 
   it should "accept and retain test configs" in {
     val opcHost = "opcHost"
     val opcPort = 80
-    val mqttHost = "mqttHost"
-    val mqttPort = 80
-    val mqttTopic = "mqttTopic"
-    val authToken = "authToken"
 
     val newConfig = new IofogConfig(
       opcHost,
-      opcPort,
-      mqttHost,
-      mqttPort,
-      mqttTopic,
-      authToken)
+      opcPort
+    )
 
     Config.initTestContext(newConfig)
 
     assert(Config.iofogConfig.get.opcHost == opcHost)
     assert(Config.iofogConfig.get.opcPort == opcPort)
-    assert(Config.iofogConfig.get.mqttHost == mqttHost)
-    assert(Config.iofogConfig.get.mqttPort == mqttPort)
-    assert(Config.iofogConfig.get.mqttTopic == mqttTopic)
-    assert(Config.iofogConfig.get.authToken == authToken)
     assert(Config.context == "test")
   }
 
