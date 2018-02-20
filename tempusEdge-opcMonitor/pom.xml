@@ -75,7 +75,6 @@
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
-    <directory>build</directory>
 
     <plugins>
       <plugin>
