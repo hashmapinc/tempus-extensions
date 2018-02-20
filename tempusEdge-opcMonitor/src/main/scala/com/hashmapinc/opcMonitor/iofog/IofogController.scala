@@ -11,7 +11,7 @@ import com.hashmapinc.opcMonitor.{IofogConfig, Config}
 /**
  * This object holds the async logic for handling iofog events
  */
-class IofogController extends IOFogAPIListener {
+object IofogController extends IOFogAPIListener {
   private val log = Logger(getClass())
 
   /**
@@ -107,5 +107,6 @@ class IofogController extends IOFogAPIListener {
   @Override
   def onNewConfigSignal: Unit = {
     log.info("Received new config signal")
+    IofogConnection.requestConfigs
   }
 }
