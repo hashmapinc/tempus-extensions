@@ -36,10 +36,10 @@ object WaterLevelPredictor {
   val log = Logger.getLogger(WaterLevelPredictor.getClass)
   
   def main(args: Array[String]): Unit = {
-    assert(args.length>=5, ERROR("Usage: mqttUrl kafkaUrl kafkaTopic highWaterMark windowSize optionalDebugLevel.\nTry mqttyUrl as tcp://tb:1883, kafkaUrl as kafka:9092, topic as water-tank-level-data, tankId as 123, highWaterMark as 70.0, windowSize as 1, and debuglevel as DEBUG=INFO"))
+    assert(args.length >= 6, ERROR("Usage: mqttUrl kafkaUrl kafkaTopic highWaterMark windowSize gatewayAccessToken optionalDebugLevel.\nTry mqttyUrl as tcp://tb:1883, kafkaUrl as kafka:9092, topic as water-tank-level-data, tankId as 123, highWaterMark as 70.0, windowSize as 1, and debuglevel as DEBUG=INFO"))
 
-    if (args.length>5) {
-      val level = args(5).split("=")(1).trim()
+    if (args.length>6) {
+      val level = args(6).split("=")(1).trim()
       if (level.equalsIgnoreCase("INFO"))
         log.setLevel(Level.INFO)
         ThingsboardPublisher.setLogLevel(Level.INFO)
@@ -58,6 +58,7 @@ object WaterLevelPredictor {
     val highWaterMark = args(3).trim().toDouble
     val winSize = Minutes(Integer.parseInt(args(4)))
     val batchSize = winSize //Seconds(20)
+    val gatewayAccessToken = args(5)
   
     val sparkConf = new SparkConf().setAppName("WaterLevelPredictor")
     val ssc = new StreamingContext(sparkConf, batchSize)
@@ -85,7 +86,7 @@ object WaterLevelPredictor {
     result.foreachRDD(rdd =>{
       if (!rdd.isEmpty()) {
         rdd.foreachPartition { p =>
-          theClient = ThingsboardPublisher.connectToThingboard(mqttUrl)
+          theClient = ThingsboardPublisher.connectToThingboard(mqttUrl, gatewayAccessToken)
 
           //Now publish data for each tankId
           p.foreach(r => ThingsboardPublisher.publishTelemetryToThingsboard(theClient, r, highWaterMark, getEta(r, highWaterMark)))
