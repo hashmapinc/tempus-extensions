@@ -25,11 +25,11 @@ object ThingsboardPublisher {
   val GATEWAY_ACCESS_TOKEN: String = "GATEWAY_ACCESS_TOKEN"
   val MQTT_TOPIC: String = "v1/gateway/telemetry"
 
-   def connectToThingboard(mqttUrl: String):MqttAsyncClient ={
+   def connectToThingboard(mqttUrl: String, gatewayToken: String):MqttAsyncClient ={
     INFO(s"trying to connect to ${mqttUrl}")
     var client = new MqttAsyncClient(mqttUrl, MqttAsyncClient.generateClientId())
     var options = new MqttConnectOptions()
-    options.setUserName(GATEWAY_ACCESS_TOKEN)
+    options.setUserName(gatewayToken)
     client.connect(options, null, new IMqttActionListener{
       def onFailure(x1: IMqttToken,x2: Throwable): Unit ={}
       def onSuccess(x1: IMqttToken): Unit = {}
