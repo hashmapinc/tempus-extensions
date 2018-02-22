@@ -1,0 +1,47 @@
+/** This PB message describes the RPC used between Compaction Client and Commapction CoProcessor.
+* We follow the below flow for the data compaction of values present in td table.
+* The PB msgs my be changed as the code is developed, but the steps will be fairly consistent.
+* They are broken down in terms of Client/Server responsibilities.
+* C.1)Client will get list of facility_id where O is true.
+* C.3)Client => [Get list(PT) for each FacilityId for which data is to be compacted from td table.]
+* C.4)Client => [Foreach PT call CompactionRpc service]
+* S.1)Server => [Fetch values from Table for a given PT.]
+* S.2)Server => [Compact the values based on the datatype. (In our case it is string)] 
+* S.3)Server => [Send the list(compacted values) corresponding to the PT)]
+* C.5)Client => [Upsert the values to tag_compressed table.]
+* C.6)Client => [Delete PT from tag_data table.]
+* C.7)Client => [Upsert compaction status in compact_status table]
+*/
+
+option java_package = "com.hashmapinc.tempus";
+option java_outer_classname = "CompactionProtos";
+option java_generic_services = true;
+option java_generate_equals_and_hash = true;
+option optimize_for = SPEED;
+
+message CompactionRequest {
+    required int64 uri = 1;
+    required int64 startTime = 2; 
+    required int64 endTime = 3;
+    required string dataType = 4;
+}
+ 
+message CompactedData {
+	required int64 uri = 1;
+	required bytes ts = 2;
+	required bytes quality = 3;
+	required bytes vb = 5;
+	optional int32 numSamples = 6;
+	required int64 firstptTs = 7;
+}
+
+message CompactionResponse {
+	optional CompactedData packedData = 1;
+	required bool isFail = 2 [default = false];
+	optional string errMsg = 3 [default = "NO_ERR"]; 
+}
+ 
+service CompactionService {
+  rpc compactData(CompactionRequest)
+    returns (CompactionResponse);
+}
