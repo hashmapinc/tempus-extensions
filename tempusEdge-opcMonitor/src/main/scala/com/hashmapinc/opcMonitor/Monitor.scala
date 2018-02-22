@@ -16,6 +16,9 @@ object Monitor {
     args: Array[String]
   ): Unit = {
     log.info("Starting Monitor")
+
+    log.info("SELFNAME = " + System.getenv("SELFNAME"))
+    log.info("CONTAINERID = " + Config.CONTAINER_ID)
     
     log.info("Connecting to iofog...")
     IofogConnection.connect
