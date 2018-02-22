@@ -13,34 +13,24 @@ class ConfigTest extends FlatSpec {
   }
 
   it should "accept and retain updates" in {
-    val opcHost = "opcHost"
-    val opcPort = 80
+    val opcEndpoint = "opcHost:80/endpoint"
 
-    val newConfig = new IofogConfig(
-      opcHost,
-      opcPort
-    )
+    val newConfig = new IofogConfig(opcEndpoint)
 
     Config.update(newConfig)
 
-    assert(Config.iofogConfig.get.opcHost == opcHost)
-    assert(Config.iofogConfig.get.opcPort == opcPort)
+    assert(Config.iofogConfig.get.opcEndpoint == opcEndpoint)
     assert(Config.context == "production")
   }
 
   it should "accept and retain test configs" in {
-    val opcHost = "opcHost"
-    val opcPort = 80
+    val opcEndpoint = "opcHost:80/endpoint"
 
-    val newConfig = new IofogConfig(
-      opcHost,
-      opcPort
-    )
+    val newConfig = new IofogConfig(opcEndpoint)
 
     Config.initTestContext(newConfig)
 
-    assert(Config.iofogConfig.get.opcHost == opcHost)
-    assert(Config.iofogConfig.get.opcPort == opcPort)
+    assert(Config.iofogConfig.get.opcEndpoint == opcEndpoint)
     assert(Config.context == "test")
   }
 

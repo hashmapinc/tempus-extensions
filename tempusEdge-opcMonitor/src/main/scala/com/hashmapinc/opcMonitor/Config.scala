@@ -8,8 +8,7 @@ import play.api.libs.json.Json
  */
 case class IofogConfig(
   // OPC configs 
-  opcHost: String,
-  opcPort: Int
+  opcEndpoint: String
 )
 object IofogConfig {
   // define implicit config reader for json to case-class conversion
@@ -24,12 +23,12 @@ object IofogConfig {
 object Config {
   private val log = Logger(getClass())
 
-  //Set default configs
+  // Set default configs
   log.info("Setting default configs")
   var context = "production"
   var iofogConfig: Option[IofogConfig] = None
 
-  //get container ID
+  // get container ID
   private val selfname = System.getenv("SELFNAME")
   val CONTAINER_ID = if(selfname == null) "" else selfname
 
@@ -44,7 +43,7 @@ object Config {
     log.info("Updating configs")
     log.info("newConfig: " + newConfig.toString)
 
-    //update configs
+    // update configs
     this.synchronized {
       context = "production"
       iofogConfig = Option(newConfig)
@@ -62,7 +61,7 @@ object Config {
     log.info("Setting test configs")
     log.info("testConfig: " + testConfig.toString)
 
-    //update configs
+    // update configs
     this.synchronized {
       context = "test"
       iofogConfig = Option(testConfig)
@@ -75,7 +74,7 @@ object Config {
   def reset: Unit = {
     log.info("Reseting configs")
 
-    //update configs
+    // update configs
     this.synchronized {
       context = "production"
       iofogConfig = None
