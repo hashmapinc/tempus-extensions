@@ -26,7 +26,7 @@
     <dependency>
       <groupId>org.eclipse.milo</groupId>
       <artifactId>sdk-client</artifactId>
-      <version>0.2.0</version>
+      <version>0.2.1</version>
     </dependency>
     <dependency>
       <groupId>com.typesafe.scala-logging</groupId>
@@ -130,12 +130,6 @@
             </goals>
           </execution>
         </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.ensime.maven.plugins</groupId>
-        <artifactId>ensime-maven</artifactId>
-        <version>1.3.0</version>
       </plugin>
 
       <plugin>
