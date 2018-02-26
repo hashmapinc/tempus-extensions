@@ -3,6 +3,7 @@ package com.hashmapinc.opcMonitor.opc
 import java.io.File
 import java.util.Arrays
 import scala.util.{Failure, Success, Try}
+import scala.language.postfixOps
 
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.sdk.client.api.config.{OpcUaClientConfig, OpcUaClientConfigBuilder}
@@ -21,16 +22,8 @@ object OpcConnection {
   private val logger = Logger(getClass())
 
   //create client
-  logger.info("creating opc client..")
-  var client = Try({
-    Success(new OpcUaClient(getClientConfig))
-  }).recoverWith({
-    case e: Exception => {
-      logger.error("unable to create opc client. Will retry when new configuration arrives...")
-      Failure(e)
-    }
-  })
-  if (client.isSuccess) logger.info("Successfully created client.")
+  var client = getUpdatedClient
+  if (client isSuccess) logger.info("Successfully created client.")
   
 
   /**
@@ -81,6 +74,28 @@ object OpcConnection {
       .setIdentityProvider(new AnonymousProvider())
       .setRequestTimeout(uint(5000))
       .build
+  }
+
+  /**
+   * Gets the latest opc configuration and updates the client with a new instance.
+   */
+  def getUpdatedClient: Try[OpcUaClient] = {
+    logger.info("creating new opc client..")
+    val updatedClient = Try(new OpcUaClient(getClientConfig))
+    if (updatedClient isFailure) {
+      logger.error("unable to create opc client." + 
+        " Will retry when new configuration arrives...")
+    }
+
+    //return updated client
+    updatedClient
+  }
+
+  /**
+   * updates the client attribute to the latest client instance with latest opc configuration
+   */
+  def updateClient: Unit = {
+    client = getUpdatedClient
   }
 
   /**
