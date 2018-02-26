@@ -1,12 +1,17 @@
 package com.hashmapinc.opcMonitor.opc
 
 import java.io.File
+import java.util.Arrays
+import scala.util.{Failure, Success, Try}
 
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.sdk.client.api.config.{OpcUaClientConfig, OpcUaClientConfigBuilder}
 import org.eclipse.milo.opcua.sdk.client.api.identity.AnonymousProvider
+import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.uint
+import org.eclipse.milo.opcua.stack.core.types.structured.EndpointDescription
+import org.eclipse.milo.opcua.stack.client.UaTcpStackClient
 
 import com.typesafe.scalalogging.Logger
 
@@ -16,22 +21,66 @@ object OpcConnection {
   private val logger = Logger(getClass())
 
   //create client
-  logger.info("creating opc client")
-  var client = new OpcUaClient(getClientConfig)
-  logger.info("opc client created...")
+  logger.info("creating opc client..")
+  var client = Try({
+    Success(new OpcUaClient(getClientConfig))
+  }).recoverWith({
+    case e: Exception => {
+      logger.error("unable to create opc client. Will retry when new configuration arrives...")
+      Failure(e)
+    }
+  })
+  if (client.isSuccess) logger.info("Successfully created client.")
+  
 
   /**
    * Uses values in the Config object to create an opcUaClient configuration
    */
   def getClientConfig: OpcUaClientConfig = {
-    logger.info("creating opc client configuration")
-    // TODO: do this properly
+    logger.info("creating opc client configuration...")
+    
+    //=========================================================================
+    // security configs
+    //=========================================================================
+    val securityTempDir = new File(System.getProperty("java.io.tmpdir"), "security")
+    if (!securityTempDir.exists() && !securityTempDir.mkdirs()) {
+      throw new Exception("unable to create security dir: " + securityTempDir)
+    }
+    logger.info("security temp dir: {}", securityTempDir.getAbsolutePath())
+
+    // TODO: Implement other securityPolicy options
+    val securityPolicy = SecurityPolicy.None 
+    //=========================================================================
+
+    //=========================================================================
+    // endpoint configs
+    //=========================================================================
+    val endpoints= Try({
+      UaTcpStackClient.getEndpoints(Config.iofogConfig.get.opcEndpoint).get
+    }).recoverWith({
+      case e: Exception => {
+        // try the explicit discovery endpoint as well
+        val discoveryUrl = Config.iofogConfig.get.opcEndpoint + "/discovery"
+        logger.info("Trying explicit discovery URL: {}", discoveryUrl)
+        Success(UaTcpStackClient.getEndpoints(discoveryUrl).get)
+      }
+    })
+
+    val endpoint = Arrays.stream(endpoints.get).
+      filter(e => e.getSecurityPolicyUri().equals(securityPolicy.getSecurityPolicyUri())).
+      findFirst().orElseThrow(()=> new Exception("no desired endpoints returned"))
+
+    logger.info("Using endpoint: {} [{}]", endpoint.getEndpointUrl(), securityPolicy)
+    //=========================================================================
+
+    // return config
     OpcUaClientConfig.builder()
-      .setApplicationName(LocalizedText.english("Tempus Edge - OPC Client"))
-      .setApplicationUri("urn:hashmapinc:tempus:edge:opcClient")
+      .setApplicationName(LocalizedText.english("hashmapinc tempus edge opc client"))
+      .setApplicationUri("urn:hashmapinc:tempus:edge:opc-client")
+      .setEndpoint(endpoint)
       .setIdentityProvider(new AnonymousProvider())
       .setRequestTimeout(uint(5000))
-      .build()
+      .build
   }
 
   /**
