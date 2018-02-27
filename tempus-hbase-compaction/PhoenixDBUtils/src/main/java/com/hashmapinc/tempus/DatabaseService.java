@@ -17,13 +17,13 @@ import java.util.TimeZone;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.log4j.Logger;
-import org.apache.spark.SparkConf;
+/*import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
-
+*/
 //import com.hashmapinc.tempus.FacilityCompactionStatus;
 import com.hashmapinc.tempus.TagData;
 import com.hashmapinc.tempus.TagDataCompressed;
@@ -35,111 +35,112 @@ public class DatabaseService {
 
   private static Integer EPOCH_START_TIME = 18000;
 
-  private transient Connection dbConnection;
-  private transient PreparedStatement queryAssetDataStatusStmt;
-  private transient PreparedStatement queryDistinctTagDataStmt;
-  private transient PreparedStatement queryDistinctTagListStmt;
-  private transient PreparedStatement queryMinMaxTagDataStmt;
-  private transient PreparedStatement queryTagDataDataTypeStmt;
+  private static Connection dbConnection;
+  //private transient PreparedStatement queryAssetDataStatusStmt;
+  //private transient PreparedStatement queryDistinctTagDataStmt;
+  //private transient PreparedStatement queryDistinctTagListStmt;
+  //private transient PreparedStatement queryMinMaxTagDataStmt;
+  //private transient PreparedStatement queryTagDataDataTypeStmt;
 
-  private transient PreparedStatement upsertTagDataCompressedStmt;
-  private transient PreparedStatement deleteTagDataStmt;
+  //private transient PreparedStatement upsertTagDataCompressedStmt;
+  //private transient PreparedStatement deleteTagDataStmt;
   private transient PreparedStatement upsertCompactionStatusStmt;
   private transient PreparedStatement upsertTduStmt;
   
-  private String tagListTable;
-  private String tagDataTable;
-  private String compactionTable;
-  private String compactionStatusTable;
-  
-  private SQLContext sqlContext;
-  private transient JavaSparkContext sparkContext;
+  private static String tagListTable;
+  private static String tagDataTable;
+  private static String compactionTable;
+  private static String compactionStatusTable;
+
+  //TODO Remove all such comments starting with //*
   /////////////////////////////////////////
-  private boolean tagDataJdbc = true;
-  private String phoenixJdbcUrl;
-  private String hbaseZookeeperUrl;
+  private static String phoenixJdbcUrl;
+  private static String hbaseZookeeperUrl;
 
 
   /**
    * @return the tagListTable
    */
-  public String getTagListTable() {
+  public static String getTagListTable() {
     return tagListTable;
   }
 
   /**
-   * @param tagDataListTable the tagDataListTable to set
+   * @param tagListTable the tagDataListTable to set
    */
-  public void setTagListTable(String tagListTable) {
-    this.tagListTable = tagListTable;
+  public static void setTagListTable(String tagListTable) {
+    if (tagListTable == null) {
+      throw new IllegalArgumentException("tagListTable");
+    }
+    DatabaseService.tagListTable = tagListTable;
   }
 
   /**
    * @return the tagDataTable
    */
-  public String getTagDataTable() {
+  public static String getTagDataTable() {
     return tagDataTable;
   }
 
   /**
    * @param tagDataTable the tagDataTable to set
    */
-  public void setTagDataTable(String tagDataTable) {
-    if (tagDataTable == null || tagDataTable.length() == 0) {
+  public static void setTagDataTable(String tagDataTable) {
+    if (tagDataTable == null) {
       throw new IllegalArgumentException("tagDataTable");
     }
-    this.tagDataTable = tagDataTable.toLowerCase();
+    DatabaseService.tagDataTable = tagDataTable.toLowerCase();
   }
 
   /**
    * @return the compactionTable
    */
-  public String getCompactionTable() {
+  public static String getCompactionTable() {
     return compactionTable;
   }
 
   /**
    * @param compactionTable the compactionTable to set
    */
-  public void setCompactionTable(String compactionTable) {
-    if (compactionTable == null || compactionTable.length() == 0) {
+  public static void setCompactionTable(String compactionTable) {
+    if (compactionTable == null) {
       throw new IllegalArgumentException("compactionTable");
     }
-    this.compactionTable = compactionTable.toLowerCase();
+    DatabaseService.compactionTable = compactionTable.toLowerCase();
   }
   
   /**
    * @return the compactionStatusTable
    */
-  public String getCompactionStatusTable() {
+  public static String getCompactionStatusTable() {
     return compactionStatusTable;
   }
 
   /**
    * @param compactionStatusTable the compactionStatusTable to set
    */
-  public void setCompactionStatusTable(String compactionStatusTable) {
-    if (compactionStatusTable == null || compactionStatusTable.length() == 0) {
+  public static void setCompactionStatusTable(String compactionStatusTable) {
+    if (compactionStatusTable == null) {
       throw new IllegalArgumentException("compactionStatusTable");
     }
-    this.compactionStatusTable = compactionStatusTable.toLowerCase();
+    DatabaseService.compactionStatusTable = compactionStatusTable.toLowerCase();
   }
 
   /**
    * @return the phoenixJdbcUrl
    */
-  public String getPhoenixJdbcUrl() {
-    return phoenixJdbcUrl;
+  public static String getPhoenixJdbcUrl() {
+    return DatabaseService.phoenixJdbcUrl;
   }
 
   /**
-   * @param phoenixJdbcUrl the phoenixJdbcUrl to set
+   * @param jdbcUrl the phoenixJdbcUrl to set
    */
-  public void setPhoenixJdbcUrl(String jdbcUrl) {
+  private static void setPhoenixJdbcUrl(String jdbcUrl) {
     if (jdbcUrl == null || jdbcUrl.length() == 0) {
       throw new IllegalArgumentException("jdbcUrl");
     }
-    this.phoenixJdbcUrl =
+    DatabaseService.phoenixJdbcUrl =
         jdbcUrl.startsWith("jdbc:phoenix:") ? jdbcUrl : ("jdbc:phoenix:" + jdbcUrl);
   }
 
@@ -165,21 +166,11 @@ public class DatabaseService {
   /**
    * @return the dbConnection
    */
-  protected Connection getDbConnection() {
+  private Connection getDbConnection() {
     return dbConnection;
   }
 
-  /**
-   * @param dbConnection the dbConnection to set
-   */
-  protected void setDbConnection(Connection dbConnection) {
-    if (hbaseZookeeperUrl == null) {
-      throw new IllegalArgumentException("dbConnection");
-    }
-    this.dbConnection = dbConnection;
-  }
-
-  public void openConnection() throws Exception {
+  public static void openConnection() throws SQLException, ClassNotFoundException {
     String jdbcUrl = getPhoenixJdbcUrl();
     if (jdbcUrl == null) {
       throw new IllegalStateException("can't open connection, no jdbc url defined");
@@ -200,7 +191,7 @@ public class DatabaseService {
     }
   }
 
-  public void closeConnection() {
+  public static void closeConnection() {
     if (dbConnection != null) {
       try {
         dbConnection.close();
@@ -211,9 +202,9 @@ public class DatabaseService {
 
       } catch (Exception ex) {
         log.error("Error closing connection: ", ex);
-      } finally {
+      } /*finally {
         clearPreparedStatements();
-      }
+      }*/
     }
   }
 
@@ -229,43 +220,6 @@ public class DatabaseService {
     return false;
   }
 
-  /**
-   * @return the sqlContext
-   */
-  private SQLContext getSqlContext() {
-    return sqlContext;
-  }
-
-  /**
-   * @param sqlContext the sqlContext to set
-   */
-  private void setSqlContext(SQLContext sqlContext) {
-    this.sqlContext = sqlContext;
-  }
-
-  /**
-   * @return the sparkContext
-   */
-  private JavaSparkContext getSparkContext() {
-    return sparkContext;
-  }
-
-  /**
-   * @param sparkContext the sparkContext to set / private void setSparkContext(JavaSparkContext
-   *          sparkContext) { this.sparkContext = sparkContext; } /**
-   * @return the tagDataJdbc
-   */
-  public boolean isTagDataJdbc() {
-    return tagDataJdbc;
-  }
-
-  /**
-   * @param tagDataJdbc the tagDataJdbc to set
-   */
-  public void setTagDataJdbc(boolean tagDataJdbc) {
-    this.tagDataJdbc = tagDataJdbc;
-  }
-
   public DatabaseService() throws ConfigurationException {
     String hbaseZookeeperUrl = System.getenv("PHOENIX_CONN_PARAM");
     if ((null == hbaseZookeeperUrl) || (0 == hbaseZookeeperUrl.length())) {
@@ -273,72 +227,27 @@ public class DatabaseService {
           "Please set PHOENIX_CONN_PARAM environment variable with value as Zookeeper Quorum");
     }
     this.hbaseZookeeperUrl = hbaseZookeeperUrl;
-    setPhoenixJdbcUrl(hbaseZookeeperUrl);
+    DatabaseService.setPhoenixJdbcUrl(hbaseZookeeperUrl);
   }
   
   /**
    * @param hbaseZookeeperUrl
    * @throws ConfigurationException
    */
-  public DatabaseService(String hbaseZookeeperUrl) throws ConfigurationException {
+  public DatabaseService(String hbaseZookeeperUrl) {
     this.hbaseZookeeperUrl = hbaseZookeeperUrl;
-    setPhoenixJdbcUrl(hbaseZookeeperUrl);
-    SparkConf spkConf = new SparkConf().setAppName(DatabaseService.class.getName());
-    String masterUrl = spkConf.get("spark.master", "local[8]");
-    spkConf.setMaster(masterUrl);
-    sparkContext = new JavaSparkContext(spkConf);
-    setSqlContext(new SQLContext(sparkContext));
-  }
-
-  private Map<String, String> createSparkOptions(String table) {
-    if (table == null) {
-      throw new IllegalArgumentException("table");
-    }
-    if (getHbaseZookeeperUrl() == null) {
-      throw new IllegalStateException("hbaseZookeeperUrl has not been set");
-    }
-
-    Map<String, String> sparkOptions = new HashMap<String, String>();
-    sparkOptions.put("zkUrl", getHbaseZookeeperUrl());
-    sparkOptions.put("table", table);
-    return sparkOptions;
+    DatabaseService.setPhoenixJdbcUrl(DatabaseService.hbaseZookeeperUrl);
   }
 
   protected void clearPreparedStatements() {
-    queryAssetDataStatusStmt = null;
-    queryDistinctTagListStmt = null;
-    queryDistinctTagDataStmt = null;
-    queryMinMaxTagDataStmt = null;
-    upsertTagDataCompressedStmt = null;
-    deleteTagDataStmt = null;
+    //queryAssetDataStatusStmt = null;
+    //queryDistinctTagListStmt = null;
+    //queryDistinctTagDataStmt = null;
+    //queryMinMaxTagDataStmt = null;
+    //upsertTagDataCompressedStmt = null;
+    //deleteTagDataStmt = null;
     upsertCompactionStatusStmt = null;
     upsertTduStmt = null;
-  }
-
-  public Timestamp queryLastCompactionTime() throws SQLException {
-    if (!hasConnection()) {
-      throw new IllegalStateException("no connection");
-    }
-
-    if (queryAssetDataStatusStmt == null) {
-      queryAssetDataStatusStmt =
-          getDbConnection().prepareStatement("SELECT lcts FROM " + compactionStatusTable);
-    } else {
-      queryAssetDataStatusStmt.clearParameters();
-    }
-
-    long start = System.currentTimeMillis();
-    ResultSet results = queryAssetDataStatusStmt.executeQuery();
-    if (!results.next()) {
-      return null;
-    }
-
-    Timestamp lastCompactionTime = results.getTimestamp(1);
-
-    if (log.isDebugEnabled()) {
-      log.debug("Queried CompactionStatus Status: " + (System.currentTimeMillis() - start) + "ms");
-    }
-    return lastCompactionTime;
   }
 
   public List<TagList> getDistinctURI(int numRetries, long retryAfterMillis) {
@@ -366,12 +275,13 @@ public class DatabaseService {
       throw new IllegalStateException("no connection");
     }
 
-    if (queryDistinctTagListStmt == null) {
+    PreparedStatement queryDistinctTagListStmt = null;
+    //if (queryDistinctTagListStmt == null) {
       queryDistinctTagListStmt = getDbConnection().prepareStatement("SELECT id, datatype from "
           + tagListTable + " where status != 0 ");
-    } else {
-      queryDistinctTagListStmt.clearParameters();
-    }
+    //} else {
+      //queryDistinctTagListStmt.clearParameters();
+    //}
 
     List<TagList> uris = new ArrayList<TagList>();
     long start = System.currentTimeMillis();
@@ -383,7 +293,7 @@ public class DatabaseService {
       tl.setDataType(results.getString(2));
       uris.add(tl);
       if (log.isTraceEnabled()) {
-        log.trace("TagList: " + tl.toString());
+        log.info("TagList: " + tl.toString());
       }
     }
 
@@ -393,7 +303,7 @@ public class DatabaseService {
     }
     return uris;
   }
-  
+  /*
   public List<Integer> getDistinctURI(int numRetries, long retryAfterMillis, long startTs,
       long endTs) {
     for (int i = 0; i < numRetries; i++) {
@@ -420,6 +330,7 @@ public class DatabaseService {
       throw new IllegalStateException("no connection");
     }
 
+    PreparedStatement queryDistinctTagDataStmt = null;
     if (queryDistinctTagDataStmt == null) {
       queryDistinctTagDataStmt = getDbConnection().prepareStatement("SELECT DISTINCT(id) from "
           + tagDataTable + " where ts <= TO_TIMESTAMP(?) and ts >= TO_TIMESTAMP(?)");
@@ -450,18 +361,19 @@ public class DatabaseService {
     }
     return uris;
   }
-
+*/
   public TagData getMinMaxTs(long uri) throws SQLException {
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
     }
 
-    if (queryMinMaxTagDataStmt == null) {
+    PreparedStatement queryMinMaxTagDataStmt = null;
+    //if (queryMinMaxTagDataStmt == null) {
       queryMinMaxTagDataStmt = getDbConnection()
           .prepareStatement("SELECT MIN(ts), MAX(ts) FROM " + tagDataTable + " where id = ?");
-    } else {
-      queryMinMaxTagDataStmt.clearParameters();
-    }
+    //} else {
+      //queryMinMaxTagDataStmt.clearParameters();
+    //}
 
     long start = System.currentTimeMillis();
     queryMinMaxTagDataStmt.setLong(1, uri);
@@ -471,37 +383,39 @@ public class DatabaseService {
     }
 
     TagData uriDetails = new TagData();
+    uriDetails.setUri(uri);
     uriDetails.setMinTs(results.getTimestamp(1));
     uriDetails.setMaxTs(results.getTimestamp(2));
 
     if (log.isDebugEnabled()) {
       log.debug(
-        "Queried min and max TS for uri: " + (System.currentTimeMillis() - start) + "ms. : ");
+        "Queried min and max TS for uri: " + uri + " in " + (System.currentTimeMillis() - start) + " ms.");
     }
     return uriDetails;
   }
 
-  public void upsertCompactedRecords(List<TagDataCompressed> tdcList, Boolean jdbcUpserts)
+  public int upsertCompactedRecords(List<TagDataCompressed> tdcList, Boolean jdbcUpserts)
       throws Exception {
     if (tdcList == null) {
       throw new IllegalArgumentException("tdcList");
     }
 
     if (jdbcUpserts) {
-      upsertCompactedPointTagsJdbc(tdcList);
+      return upsertCompactedPointTagsJdbc(tdcList);
     } else {
-      writeTagDataCompressed(sparkContext.parallelize(tdcList));
+      return 0;//*writeTagDataCompressed(sparkContext.parallelize(tdcList));
     }
   }
 
-  public void upsertCompactedPointTagsJdbc(List<TagDataCompressed> compressedPointTags)
+  public int upsertCompactedPointTagsJdbc(List<TagDataCompressed> compressedPointTags)
       throws SQLException {
 
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
     }
 
-    if (upsertTagDataCompressedStmt != null) upsertTagDataCompressedStmt.clearParameters();
+    PreparedStatement upsertTagDataCompressedStmt = null;
+    //if (upsertTagDataCompressedStmt != null) upsertTagDataCompressedStmt.clearParameters();
 
     dbConnection.setAutoCommit(false);
     int numRowsUpserted = 0;
@@ -528,9 +442,11 @@ public class DatabaseService {
           + (System.currentTimeMillis() - start) + "ms.");
     }
     dbConnection.setAutoCommit(true);
-
+    return numRowsUpserted;
   }
 
+  //*
+  /*
   private void writeTagDataCompressed(JavaRDD<TagDataCompressed> tagData) throws Exception {
 
     if (tagData == null) {
@@ -548,8 +464,10 @@ public class DatabaseService {
         "TagDataCompressed DataFrame Write in: " + (System.currentTimeMillis() - start) + "ms. ");
     }
     tagData.unpersist();
-  }
+  }*/
 
+  //*
+  /*
   public void writeTagDataCompressed(List<JavaRDD<TagDataCompressed>> tagDataList)
       throws Exception {
 
@@ -567,8 +485,10 @@ public class DatabaseService {
       }
     }
     writeTagDataCompressed(compactedRDDs);
-  }
+  }*/
 
+  //*
+  /*
   public void upsertCompactedPointTags(List<TagDataCompressed> compressedPointTags)
       throws Exception {
 
@@ -576,6 +496,7 @@ public class DatabaseService {
     JavaRDD<TagDataCompressed> compactedRDD = sparkContext.parallelize(compressedPointTags);
     writeTagDataCompressed(compactedRDD);
   }
+  */
 
   public void upsertCompactionStatus(CompactionStatus compactionStatus)
       throws SQLException {
@@ -601,19 +522,29 @@ public class DatabaseService {
     }
   }
 
-  public void deleteCompactedURIs(List<Long> compactedURIs, long startTs, long endTs)
+  public int deleteCompactedURIs(List<Long> compactedURIs, long startTs, long endTs)
       throws SQLException {
+    try {
+      Thread.sleep(50000);
+      throw new SQLException("Timeout simulation");
+    } catch (InterruptedException e) {
+      log.info("Exception caught while sleeping in thread");
+      e.printStackTrace();
+    }
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
     }
 
-    if ((compactedURIs == null) || (compactedURIs.size() == 0))
+    if (compactedURIs == null)
       throw new IllegalArgumentException("tagDataCompressed");
     long start = System.currentTimeMillis();
 
     // if (deleteTagDataStmt != null) deleteTagDataStmt.clearParameters();
     int delURIsSize = compactedURIs.size();
-    if (deleteTagDataStmt == null) {
+    if(delURIsSize == 0)
+      return 0;
+    PreparedStatement deleteTagDataStmt = null;
+    //if (deleteTagDataStmt == null) {
       StringBuilder sql = new StringBuilder();
       sql.append("DELETE FROM " + tagDataTable
           + " WHERE ts >= TO_TIMESTAMP(?) AND ts <= TO_TIMESTAMP(?) AND id in (");
@@ -625,18 +556,20 @@ public class DatabaseService {
       }
       sql.append(")");
       deleteTagDataStmt = getDbConnection().prepareStatement(sql.toString());
-    } else {
-      deleteTagDataStmt.clearParameters();
-    }
+   // } //else {
+      //deleteTagDataStmt.clearParameters();
+    //}
 
     // convert to utc because startTs and endTs are in current time zone
     Timestamp delStartTime = new Timestamp(startTs == 0 ? convertToUTC(EPOCH_START_TIME) : convertToUTC(startTs));
     Timestamp delEndTime = new Timestamp(convertToUTC(endTs));
 
-    //log.info("delStartTime:" + delStartTime.toString());
-    //log.info("delEndTime:" + delEndTime.toString());
-    //log.info("delStartTime:" + delStartTime.getTime());
-    //log.info("delEndTime:" + delEndTime.getTime());
+    if(log.isTraceEnabled()){
+      log.info("delStartTime:" + delStartTime.toString());
+      log.info("delEndTime:" + delEndTime.toString());
+      log.info("delStartTime:" + delStartTime.getTime());
+      log.info("delEndTime:" + delEndTime.getTime());
+    }
     String stTime = delStartTime.toString();
     String endTime = delEndTime.toString();
     deleteTagDataStmt.setString(1, stTime);
@@ -645,12 +578,16 @@ public class DatabaseService {
       deleteTagDataStmt.setLong(i + 1 + 2, compactedURIs.get(i));
     }
 
-    //log.debug("Delete Statement: " + deleteTagDataStmt);
+    if(log.isDebugEnabled()) {
+      log.debug("Delete Statement: " + deleteTagDataStmt);
+    }
+
     int numRowsDeleted = deleteTagDataStmt.executeUpdate();
     if (log.isDebugEnabled()) {
       log.debug("Deleted [" + numRowsDeleted + "] Tag Data records for ["
-          + compactedURIs.size() + "] tags in " + (System.currentTimeMillis() - start) + "ms.");
+          + delURIsSize + "] tags in " + (System.currentTimeMillis() - start) + "ms.");
     }
+    return numRowsDeleted;
   }
 
   private long convertToUTC(long ts) {
@@ -684,12 +621,13 @@ public class DatabaseService {
       throw new IllegalStateException("no connection");
     }
 
-    if (queryTagDataDataTypeStmt == null) {
+    PreparedStatement queryTagDataDataTypeStmt = null;
+    //if (queryTagDataDataTypeStmt == null) {
       queryTagDataDataTypeStmt = getDbConnection()
           .prepareStatement("SELECT datatype FROM " + tagListTable + " where id = ?");
-    } else {
-      queryTagDataDataTypeStmt.clearParameters();
-    }
+    //} else {
+      //queryTagDataDataTypeStmt.clearParameters();
+    //}
 
     long start = System.currentTimeMillis();
     queryTagDataDataTypeStmt.setLong(1, uri);

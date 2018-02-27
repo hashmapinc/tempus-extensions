@@ -40,7 +40,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<dependency>
+		<!--<dependency>
 			<artifactId>spark-core_${hdp.scala.version}</artifactId>
 			<groupId>org.apache.spark</groupId>
 			<version>${spark.hortonworks.version}</version>
@@ -73,7 +73,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<dependency>
+		--><dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
 			<version>2.4.4</version>

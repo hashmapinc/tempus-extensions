@@ -30,7 +30,7 @@ public class Utils {
     File pidFile = new File(runFile);
     try (BufferedReader reader = Files.newBufferedReader(pidFile.toPath())) {
       while ((line = reader.readLine()) != null) {
-        log.info("line: " + line);
+        log.info("PID from file : " + pidFile + "[" + line +"]");
         break;
       }
     } catch (IOException x) {

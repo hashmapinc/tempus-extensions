@@ -27,11 +27,19 @@ import java.util.stream.Collectors;
 
 public interface AsyncInterface {
 
+    int NUM_RETRIES_CONNECTING_TO_DATABASE = 5;
+    int DEFAULT_RETRY_MILLIS = 10000;
     long ONE_SEC_IN_MILLIS = 1000L;
     Logger log = Logger.getLogger(AsyncInterface.class);
-    // TODO
-    //Introduced for migration of older API's will be removed
-    Table table = null;
+
+    static CompletableFuture<List<TagList>> getCompactionTagList(ExecutorService executor,
+                                                              DatabaseService dbService) {
+        CompletableFuture<List<TagList>> future = CompletableFuture.supplyAsync(()->{
+            List<TagList> tagList = dbService.getDistinctURI(NUM_RETRIES_CONNECTING_TO_DATABASE, DEFAULT_RETRY_MILLIS);
+            return tagList;
+        }, executor);
+        return future;
+    }
 
     static CompletableFuture<List<CompletableFuture<List<Map<Long, Long[]>>>>>
     compactAllUriPartitions
@@ -51,21 +59,31 @@ public interface AsyncInterface {
     }
 
     static CompletableFuture<CompletableFuture<List<Map<Long, Long[]>>>>
-    compactAsync(ExecutorService executor, List<TagList> uris, DatabaseService dbService, long
+    compactAsync(ExecutorService executor, final List<TagList> uris, DatabaseService dbService, long
             startTs, long endTs, Integer compactionWindowTimeInSecs, final Table table) {
 
         CompletableFuture<CompletableFuture<List<Map<Long, Long[]>>>> future = CompletableFuture
                 .supplyAsync(() -> {
-                    Map<Long, String> uriDataTypeMap = uris.stream().collect(Collectors.toMap
-                            (TagList::getId, TagList::getDataType));
+                    Map<Long, String> uriDataTypeMap = uris.stream()
+                            .collect(Collectors.toMap(TagList::getId, TagList::getDataType));
 
-                    log.info("Calling getMinMaxTs & compactAndUpsert for " + uris.toString());
+                    if(log.isDebugEnabled()){
+                        uriDataTypeMap.forEach((uri, dataType) -> {
+                            log.info("Uri: " + uri + "; Datatype: " + dataType);
+                        });
+                    }
+                    log.info("Calling getMinMaxTs & compactAndUpsert for uris ");
+                    //if(log.isTraceEnabled()){
+                        log.info("URI's: " + (uris.stream().map(tl -> tl.getId()).collect
+                                (Collectors.toList())).toString());
+                    //}
                     CompletableFuture<List<TagData>> allMinMaxTs = getMinMaxTs(executor,
                             uris, dbService);
 
                     return allMinMaxTs.thenCompose((List<TagData> listTagData) -> {
                         listTagData = listTagData.stream()
                                 .filter(Objects::nonNull)
+                                .filter(pointTag -> pointTag.getUri() != 0)
                                 .filter(pointTag -> pointTag.getMinTs() != null)
                                 .filter(pointTag -> pointTag.getMaxTs() != null)
                                 .collect(Collectors.toList());
@@ -94,7 +112,7 @@ public interface AsyncInterface {
 
     static CompletableFuture<List<TagData>> getMinMaxTs(final Executor executor, final
     List<TagList> uris, final DatabaseService dbService) {
-        //synchronized (dbService)
+
         List<CompletableFuture<TagData>> futurePointTagTSDetails = uris.stream()
                 .map(uri -> getMinMaxTsAsync(executor, uri.getId(), dbService))
                 .collect(Collectors.toList());
@@ -117,21 +135,17 @@ public interface AsyncInterface {
     static CompletableFuture<TagData> getMinMaxTsAsync(Executor executor, final long uri,
                                                        final DatabaseService dbs) {
         CompletableFuture<TagData> future = CompletableFuture.supplyAsync(() -> {
-            //synchronized (dbs) {
-            TagData ptTsDetails = null;
-            try {
-                log.info("Get min max ts for uri: " + uri);
-                ptTsDetails = dbs.getMinMaxTs(uri);
-                //log.info("tagDataMinMaxTs: [" + ptTsDetails.getPointTag() + ": " + ptTsDetails.getMinTs() + "-" + ptTsDetails.getMaxTs() + "];");
-            } catch (SQLException e) {
-                log.info("For " + uri + " Got SQLException: " + e.getSQLState() + "; " + e.getLocalizedMessage());
-                throw new RuntimeException(e);
-                //future.completeExceptionally(e);
-                //throw new IllegalStateException(e);
+            synchronized (dbs) {
+                TagData ptTsDetails = null;
+                try {
+                    log.info("Get min max ts for uri: " + uri);
+                    ptTsDetails = dbs.getMinMaxTs(uri);
+                } catch (SQLException e) {
+                    log.info("For " + uri + " Got SQLException: " + e.getSQLState() + "; " + e.getLocalizedMessage());
+                    throw new RuntimeException(e);
+                }
+                return ptTsDetails;
             }
-            //future.complete(ptTsDetails);
-            return ptTsDetails;
-            //}
         }, executor);
         return future;
     }
@@ -145,26 +159,24 @@ public interface AsyncInterface {
 
         long numOfRpcCalls = rpcListMap.keySet().stream().findFirst().get();
         List<RpcCalls> listRpcCalls = rpcListMap.get(numOfRpcCalls);
-        /*for (Map.Entry<Long, List<RpcCalls>> keyValuePair : rpcListMap.entrySet()) {
-            listRpcCalls = keyValuePair.getValue();
-        }*/
 
-        log.info("Starting Compaction run for time window [" + td.getUri() + "]from[" + (new Timestamp(startTs)).toString() + " - " + (new Timestamp(endTs)).toString() + "];");
+
+        log.info("Starting Compaction run for URI [" + td.getUri() + "]from[" + (new Timestamp
+                (startTs)).toString() + " - " + (new Timestamp(endTs)).toString() + "];");
         List<CompletableFuture<Map<byte[], CompactionResponse>>> futureTdc = listRpcCalls.stream().filter(rpcCall -> Objects.nonNull(rpcCall))
                 .map(rpcCall -> compactUri(executor, dbs, rpcCall.getStartKey(), rpcCall
                         .getEndKey(), rpcCall.getRequest(), table))
                 .collect(Collectors.toList());
 
 
-        //CompletableFuture<Map<String, Map<Long, List<TagDataCompressed>>>> futureResponse =
-        CompletableFuture<Map<Long, Long[]>> futureUpserts =
+        CompletableFuture<Map<Long, Long[]>> futureCompactionStats =
                 CompletableFuture.allOf(futureTdc.toArray(new CompletableFuture[futureTdc.size()]))
                         .thenApply(v -> {
                             return futureTdc.stream()
                                     .map(tdcFuture -> tdcFuture.join())
                                     .collect(Collectors.toList());
                         }).thenCompose((List<Map<byte[], CompactionResponse>> listRegionResponse) -> {
-                    log.info("Done Compaction run for time window [" + td.getUri() + "]from[" +
+                    log.info("Done Compaction run for URI [" + td.getUri() + "]from[" +
                             (new Timestamp(startTs)).toString() + " - " + (new Timestamp(endTs)).toString() + "];");
                     return getCoProcessorResponse(executor, td, listRegionResponse).thenCompose
                             (mapCompletableFuture -> {
@@ -182,7 +194,7 @@ public interface AsyncInterface {
                             });
                 });
 
-        return futureUpserts;
+        return futureCompactionStats;
     }
 
     static Map<Long, List<RpcCalls>> createCompactionRequests(final Long uri,
@@ -198,6 +210,11 @@ public interface AsyncInterface {
         String logStartTs = new Timestamp(windowStartTs).toString();
         String logEndTs = new Timestamp(endTs).toString();
 
+        if(uri <= 0) {
+            log.error("URI [" + uri + "] can't be compacted");
+            return null;
+        }
+
         if (windowStartTs > endTs) {
             log.info(
                     "No Compaction run for [" + uri + "] as windowStartTs i.e. [pt(min(TS))] > " +
@@ -211,7 +228,8 @@ public interface AsyncInterface {
         while ((endTs - windowStartTs) > 0) {
             String logWindowStartTs = new Timestamp(windowStartTs).toString();
             String logWindowEndTs = new Timestamp(windowEndTs).toString();
-            log.debug("Creating compaction request for time window[" + logWindowStartTs + " - " + logWindowEndTs + "];");
+            log.debug("Creating compaction request for uri [" + uri + "]; time window[" +
+                    logWindowStartTs + " - " + logWindowEndTs + "];");
             final byte[] startKey = Utils.createScanStartRow(uri, windowStartTs);
             final byte[] endKey = Utils.createScanStopRow(uri, windowEndTs);
             final CompactionRequest rpcRequest = createRpcRequest(uri, windowStartTs, windowEndTs, dataType);
@@ -301,7 +319,7 @@ public interface AsyncInterface {
                                 tdc.setNs(compactData.getNumSamples());
                                 // Upsert TS in Xtd_compact table for this compacted PT record
                                 //tdc.setUpsertTs(new Timestamp(System.currentTimeMillis()));
-                                if (log.isDebugEnabled()) {
+                                if (log.isTraceEnabled()) {
                                     log.debug("TDC = " + tdc.toString());
                                 }
                                 tdcList.add(tdc);
@@ -317,12 +335,12 @@ public interface AsyncInterface {
                             // Also error_msg is set with NO_ERR:....
                             if (response.hasErrMsg() && response.getErrMsg().startsWith("NO_ERR")) {
                                 if (log.isDebugEnabled())
-                                    log.info("Resp msg:- " + response.getErrMsg());
+                                    log.info("URI:[" + td.getUri() + "]; Resp msg:- " + response.getErrMsg());
                             } else {
                                 // Coprocessor recvd some exception while processing data.
                                 // isFail will be true and exception will be in response.getErrMsg()
                                 if (response.getIsFail()) {
-                                    log.error("Received exception with error messsage " + response.getErrMsg());
+                                    log.error("URI:[" + td.getUri() + "]; Received exception with error messsage " + response.getErrMsg());
                                     throw new IllegalStateException(response.getErrMsg());
                                 } else {
                                     // Should never come here as we have handled failures in exception
@@ -330,7 +348,7 @@ public interface AsyncInterface {
                                     // This block happens when ERR(no_packed_data) && ERR(no_fail) && ERR(no_err_msg)
                                     // For now, lets log(ERROR) and continue to the next compaction window for the TD
                                     log.error(
-                                            "Unhandled state  ERR(no_packed_data) && ERR(no_fail) && ERR(no_err_msg).");
+                                            "URI:[" + td.getUri() + "]; Unhandled state  ERR(no_packed_data) && ERR(no_fail) && ERR(no_err_msg).");
                                     // throw new IllegalStateException("E(no_packed_data) && E(no_fail) &&
                                     // E(no_err_msg)");
                                 }
@@ -339,7 +357,7 @@ public interface AsyncInterface {
                     }
                 } else {
                     //TODO
-                    log.info("Check RS logs. Compaction Service returned null responses for TimeWindow.:"
+                    log.info("URI:[" + td.getUri() + "]; Check RS logs. Compaction Service returned null responses for TimeWindow.:"
                             /*+ windowStartTs + " - " + windowEndTs*/);
                 }
             }
@@ -355,11 +373,7 @@ public interface AsyncInterface {
             synchronized (dbs) {
                 long recordsUpserted = 0;
                 try {
-                    //TODO
-                    // return num of upserted records
-                    //recordsUpserted =
-                    dbs.upsertCompactedRecords(compactedRecords, true);
-                    //compactedRecords.clear();
+                    recordsUpserted = dbs.upsertCompactedRecords(compactedRecords, true);
                 } catch (Exception e) {
                     throw new IllegalStateException(e.getMessage());
                 }
@@ -370,7 +384,6 @@ public interface AsyncInterface {
     }
 
     static CompletableFuture<List<Long>> deleteCompactedRecords(Executor executor, List<List<Long>> deleteLists, final DatabaseService dbs, final long startTs, final long endTs) {
-
         List<CompletableFuture<Long>> futureDeletedRecords = deleteLists.stream()
                 .map(deleteList -> deleteCompactedPointTags(executor, deleteList, dbs, startTs, endTs))
                 .collect(Collectors.toList());
@@ -385,73 +398,19 @@ public interface AsyncInterface {
 
     static CompletableFuture<Long> deleteCompactedPointTags(Executor executor, final List<Long> uris, final DatabaseService dbs, final long startTs, final long endTs) {
         log.info("Calling Deletes on list size of " + uris.size());
+        log.info("Calling deletes on URI's: " + uris.toString());
         CompletableFuture<Long> future = CompletableFuture.supplyAsync(() -> {
             synchronized (dbs) {
-                Long deletedRecords = null;
+                long deletedRecords = 0;
                 try {
-                    //TODO
-                    // return num of deleted records
-                    //deletedRecords = ;
-                    dbs.deleteCompactedURIs(uris, startTs, endTs);
-                    //log.info("tagDataMinMaxTs: [" + ptTsDetails.getPointTag() + ": " + ptTsDetails.getMinTs() + "-" + ptTsDetails.getMaxTs() + "];");
+                    deletedRecords = dbs.deleteCompactedURIs(uris, startTs, endTs);
                 } catch (SQLException e) {
                     log.info("For [" + uris.toString() + "] Got SQLException: " + e.getSQLState() +
                             "; " + e.getLocalizedMessage());
-                    //throw new IllegalStateException(e);
                 }
                 return deletedRecords;
             }
         }, executor);
         return future;
     }
-
-
-    //Sync API's to bemigrated here
-    @Deprecated
-    static void createRpcRequestOld(long uri, long startTs, long endTs, String dataType) {
-        CompactionRequest.Builder requestBuilder = CompactionRequest.newBuilder();
-        CompactionRequest request = requestBuilder.setUri(uri).setStartTime(startTs).setEndTime(endTs)
-                .setDataType(dataType).build();
-    }
-
-    @Deprecated
-    static Map<byte[], CompactionResponse> getCompactionResponse()
-            throws ServiceException, Throwable {
-        //TODO
-        //Added local variable for migration of Old Apis
-        CompactionRequest request = null;
-        Map<byte[], CompactionResponse> results = null;
-        results = table.coprocessorService(CompactionService.class, null, null,
-                new Batch.Call<CompactionService, CompactionResponse>() {
-                    @Override
-                    public CompactionResponse call(CompactionService aggregate) throws IOException {
-                        BlockingRpcCallback<CompactionResponse> rpcCallback =
-                                new BlockingRpcCallback<CompactionResponse>();
-                        aggregate.compactData(null, request, rpcCallback);
-                        CompactionResponse response = (CompactionResponse) rpcCallback.get();
-                        return response;
-                    }
-                });
-        return results;
-    }
-
-    @Deprecated
-    static Map<byte[], CompactionResponse> callCompactionRpc(long uri, long startTs, long endTs,
-                                                                              String dataType) {
-
-        Map<byte[], CompactionResponse> compactionResp = null;
-        // Call CoProcessor Service
-        try {
-            createRpcRequest(uri, startTs, endTs, dataType);
-            compactionResp = getCompactionResponse();
-        } catch (Exception e) {
-            log.error("Caught Exception during compaction run");
-            e.printStackTrace();
-        } catch (Throwable e) {
-            log.error("Caught Throwable during compaction run");
-            e.printStackTrace();
-        }
-        return compactionResp;
-    }
-
 }
