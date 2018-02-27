@@ -19,7 +19,7 @@
     "configuration": {
       "sync": true,
       "topic": "well-log-ds-data",
-      "template": "#if($tags.size() > 0)\n\t[\n\t\t#foreach ($tag in $tags)\n\t\t  {\"id\": \"DEPTHLOG:$tag.key@$cs.nameWellbore@$cs.nameWell\", \"tsds\": \"$tag.ds\", \"value\": \"$tag.valueAsString\"}\n\t\t  #if($velocityCount < $tags.size())%!%#end\n\t\t#end\n\t]\n#end"
+      "template": "#if ($tags.size()>0)\n{\"tempus.hint\": \"DEPTHLOG\", #foreach ($tag in $tags)\"$tag.key\": \"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()), \"tempus.tsds\": \"$tag.ds\"#end#end, \"ss\": \"$ss\", \"cs\": \"$cs\"}\n#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WellDepthLog"

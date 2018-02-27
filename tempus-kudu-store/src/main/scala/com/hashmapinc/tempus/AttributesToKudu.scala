@@ -23,15 +23,15 @@ object AttributesToKudu {
   //val KUDU_QUICKSTART_USER_ID = "demo"
   //val KUDU_QUICKSTART_PASSWORD = "demo"
   val log = Logger.getLogger(AttributesToKudu.getClass)
-  
+
   def streamDataFromKafkaToKudu(kafka: String, topics: Array[String], kuduUrl: String, userId: String, password: String, level: String="ERROR"): Unit = {
     val kafkaParams = Map[String, Object](
-     "bootstrap.servers" -> kafka,
-     "key.deserializer" -> classOf[StringDeserializer],
-     "value.deserializer" -> classOf[StringDeserializer],
-     "group.id" -> "DEFAULT_GROUP_ID",
-     "auto.offset.reset" -> "latest",
-     "enable.auto.commit" -> (false: java.lang.Boolean)
+      "bootstrap.servers" -> kafka,
+      "key.deserializer" -> classOf[StringDeserializer],
+      "value.deserializer" -> classOf[StringDeserializer],
+      "group.id" -> "DEFAULT_GROUP_ID",
+      "auto.offset.reset" -> "latest",
+      "enable.auto.commit" -> (false: java.lang.Boolean)
     )
     val sparkConf = new SparkConf().setAppName("AttributesKafkaToKudu")
 
@@ -43,22 +43,22 @@ object AttributesToKudu {
     ssc.sparkContext.setLogLevel("ERROR")
 
     val stream = KafkaUtils
-                    .createDirectStream[String, String](ssc, PreferConsistent, Subscribe[String, String](topics, kafkaParams))
+      .createDirectStream[String, String](ssc, PreferConsistent, Subscribe[String, String](topics, kafkaParams))
 
     assert((stream != null), log.error("Kafka stream is not available. Check your Kafka setup."))
     log.info("kafka stream is alright")
     //Stream could be empty but that is perfectly okay
     val values = stream.map(record => record.value())
     val records = values.transform(rdd=>{
-    val ds=spark.read.json(rdd)
+      val ds=spark.read.json(rdd)
       ds.show()
-    ds.rdd
+      ds.rdd
     })
 
     records.foreachRDD(rdd =>{
       if (!rdd.isEmpty()) {
-          rdd.foreachPartition { p =>
-            val con = ImpalaWrapper.getImpalaConnection(kuduUrl, userId, password)
+        rdd.foreachPartition { p =>
+          val con = ImpalaWrapper.getImpalaConnection(kuduUrl, userId, password)
           p.foreach(r => {
 
             // Generate the schema based on the string of schema
@@ -68,79 +68,79 @@ object AttributesToKudu {
             var country = ""
             if(r.schema.indexOf(StructField("country",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("country",StringType,true))) != null)
-              country = r.get(r.schema.indexOf(StructField("country",StringType,true))).toString
+                country = r.get(r.schema.indexOf(StructField("country",StringType,true))).toString
             }
 
             var state = ""
             if(r.schema.indexOf(StructField("state",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("state",StringType,true))) != null)
-              state = r.get(r.schema.indexOf(StructField("state",StringType,true))).toString
+                state = r.get(r.schema.indexOf(StructField("state",StringType,true))).toString
             }
 
             var county = ""
             if(r.schema.indexOf(StructField("county",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("county",StringType,true))) != null)
-              county = r.get(r.schema.indexOf(StructField("county",StringType,true))).toString
+                county = r.get(r.schema.indexOf(StructField("county",StringType,true))).toString
             }
 
             var timeZone = ""
             if(r.schema.indexOf(StructField("timeZone",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("timeZone",StringType,true))) != null)
-              timeZone = r.get(r.schema.indexOf(StructField("timeZone",StringType,true))).toString
+                timeZone = r.get(r.schema.indexOf(StructField("timeZone",StringType,true))).toString
             }
 
             var operator = ""
             if(r.schema.indexOf(StructField("operator",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("operator",StringType,true))) != null)
-              operator = r.get(r.schema.indexOf(StructField("operator",StringType,true))).toString
+                operator = r.get(r.schema.indexOf(StructField("operator",StringType,true))).toString
             }
 
             var numAPI = ""
             if(r.schema.indexOf(StructField("numAPI",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("numAPI",StringType,true))) != null)
-              numAPI = r.get(r.schema.indexOf(StructField("numAPI",StringType,true))).toString
+                numAPI = r.get(r.schema.indexOf(StructField("numAPI",StringType,true))).toString
             }
 
             var dtimSpud = ""
             if(r.schema.indexOf(StructField("dtimSpud",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("dtimSpud",StringType,true))) != null)
-              dtimSpud = r.get(r.schema.indexOf(StructField("dtimSpud",StringType,true))).toString
+                dtimSpud = r.get(r.schema.indexOf(StructField("dtimSpud",StringType,true))).toString
             }
 
 
             var statusWell = ""
             if(r.schema.indexOf(StructField("statusWell",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("statusWell",StringType,true))) != null)
-              statusWell = r.get(r.schema.indexOf(StructField("statusWell",StringType,true))).toString
+                statusWell = r.get(r.schema.indexOf(StructField("statusWell",StringType,true))).toString
             }
             var nameWellbore = ""
             if(r.schema.indexOf(StructField("nameWellbore",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("nameWellbore",StringType,true))) != null)
-              nameWellbore = r.get(r.schema.indexOf(StructField("nameWellbore",StringType,true))).toString
+                nameWellbore = r.get(r.schema.indexOf(StructField("nameWellbore",StringType,true))).toString
             }
 
             var statusWellbore = ""
             if(r.schema.indexOf(StructField("statusWellbore",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("statusWellbore",StringType,true))) != null)
-              statusWellbore = r.get(r.schema.indexOf(StructField("statusWellbore",StringType,true))).toString
+                statusWellbore = r.get(r.schema.indexOf(StructField("statusWellbore",StringType,true))).toString
             }
 
             var nameRig = ""
             if(r.schema.indexOf(StructField("nameRig",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("nameRig",StringType,true))) != null)
-              nameRig = r.get(r.schema.indexOf(StructField("nameRig",StringType,true))).toString
+                nameRig = r.get(r.schema.indexOf(StructField("nameRig",StringType,true))).toString
             }
 
             var owner = ""
             if(r.schema.indexOf(StructField("owner",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("owner",StringType,true))) != null)
-              owner = r.get(r.schema.indexOf(StructField("owner",StringType,true))).toString
+                owner = r.get(r.schema.indexOf(StructField("owner",StringType,true))).toString
             }
 
             var dtimStartOp = ""
             if(r.schema.indexOf(StructField("dtimStartOp",StringType,true)) != -1){
               if(r.get(r.schema.indexOf(StructField("dtimStartOp",StringType,true))) != null)
-              dtimStartOp = r.get(r.schema.indexOf(StructField("dtimStartOp",StringType,true))).toString
+                dtimStartOp = r.get(r.schema.indexOf(StructField("dtimStartOp",StringType,true))).toString
             }
 
             var ekey = ""
@@ -157,22 +157,22 @@ object AttributesToKudu {
 
 
             val deviceAttr = DeviceAttribute(nameWell, country, state , county , timeZone, operator,
-               numAPI, dtimSpud, statusWell,ekey,well_government_id,
-               nameWellbore, statusWellbore, nameRig, owner, dtimStartOp)
+              numAPI, dtimSpud, statusWell,ekey,well_government_id,
+              nameWellbore, statusWellbore, nameRig, owner, dtimStartOp)
 
 
-             ImpalaWrapper.upsertAttributeInfo(con, deviceAttr)
+            //ImpalaWrapper.upsertAttributeInfo(con, deviceAttr)
 
           })
           ImpalaWrapper.closeConnection(con)
         }
       }
     })
-                    
+
     ssc.start()
     ssc.awaitTermination()
   }
-  
+
 
   def main(args: Array[String]) : Unit = {
     var kafkaUrl = ""

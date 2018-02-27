@@ -1,6 +1,6 @@
 {
   "name": "WITSML Attribute Rule",
-  "state": "ACTIVE",
+  "state": "SUSPENDED",
   "weight": 0,
   "pluginToken": "kafka-spark-streaming-sample",
   "filters": [
@@ -19,7 +19,7 @@
     "configuration": {
       "sync": true,
       "topic": "well-attribute-data",
-      "template": "#if($attrtags.size() > 0) \t\t\n[{\n#foreach ($tag in $attrtags)\n\t\t  \"$tag.key\": \"$tag.ValueAsString\"\n\t\t  #if($velocityCount < $attrtags.size()) , #end\n#end\n                \n}]\n#end "
+      "template": "#if ($attrtags.size()>0)\n{\"tempus.hint\": \"ATTRIBUTES\", #foreach ($tag in $attrtags)\"$tag.key\": \"$tag.valueAsString\",#end \"tempus.nameWell\": \"$cs.nameWell\"}\n#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WITSMlAttributes"

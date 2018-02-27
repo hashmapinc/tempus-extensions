@@ -25,33 +25,36 @@ object ToKudu {
   val KEY1 = """"id": """
   val KEY2 = """"tsds": """
   val KEY3 = """"value": """
+  val TEMPUS_HINT="tempus.hint"
+  val TEMPUS_TSDS="tempus.tsds"
+  val TEMPUS_NAMEWELL="tempus.nameWell"
   val log = Logger.getLogger(ToKudu.getClass)
-  
+
   def streamDataFromKafkaToKudu(kafka: String, topics: Array[String], kuduUrl: String=KUDU_QUICKSTART_CONNECTION_URL, userId: String=KUDU_QUICKSTART_USER_ID, password: String=KUDU_QUICKSTART_PASSWORD, level: String="WARN"): Unit = {
     log.setLevel(logLevelMap(level))
+    INFO("Started app")
+    WARN("Started app")
     ImpalaWrapper.setLogLevel(logLevelMap(level))
     val kafkaParams = Map[String, Object](
-     "bootstrap.servers" -> kafka,
-     "key.deserializer" -> classOf[StringDeserializer],
-     "value.deserializer" -> classOf[StringDeserializer],
-     "group.id" -> topics(0), //"DEFAULT_GROUP_ID",
-     "auto.offset.reset" -> "latest",
-     "enable.auto.commit" -> (false: java.lang.Boolean)
+      "bootstrap.servers" -> kafka,
+      "key.deserializer" -> classOf[StringDeserializer],
+      "value.deserializer" -> classOf[StringDeserializer],
+      "group.id" -> topics(0),
+      "auto.offset.reset" -> "latest",
+      "enable.auto.commit" -> (false: java.lang.Boolean)
     )
     val sparkConf = new SparkConf().setAppName("FromKafkaToKudu")
     val ssc = new StreamingContext(sparkConf, Minutes(1))
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
-    import spark.implicits._
     ssc.sparkContext.setLogLevel("WARN")
 
     val stream = KafkaUtils
-                    .createDirectStream[String, String](ssc, PreferConsistent, Subscribe[String, String](topics, kafkaParams))
+      .createDirectStream[String, String](ssc, PreferConsistent, Subscribe[String, String](topics, kafkaParams))
 
     assert((stream != null), ERROR("Kafka stream is not available. Check your Kafka setup."))
 
     //Stream could be empty but that is perfectly okay
-    val values  = stream.map(_.value().replace("[", "").replace("]", ""))
-                        .flatMap(_.split("%!%")).map(_.trim())
+    val values  = stream.map(_.value())
                         .filter(_.length>0)                     //Ignore empty lines
                         .map(toMap(_))
                         .filter(isNonEmptyRecord(_))            //Ignore empty records - id for growing objects and nameWell for attributes
@@ -60,7 +63,7 @@ object ToKudu {
       if (!rdd.isEmpty()) {
         rdd.foreachPartition { p =>
           val con = ImpalaWrapper.getImpalaConnection(kuduUrl, userId, password)
-          
+
           p.foreach(r => {
             val stmt = ImpalaWrapper.getUpsert(con, r)
             ImpalaWrapper.upsert(con, stmt, r)
@@ -71,41 +74,37 @@ object ToKudu {
         }
       }
     })
-                    
+
     ssc.start()
     ssc.awaitTermination()
   }
 
   def isNonEmptyRecord(record: Map[String, String]): Boolean = {
-    //Ignore empty records - id for growing objects and nameWell for attributes
-    var result = record.getOrElse(ID, null);
-    if (result == null)
-      result = record.getOrElse(NAMEWELL, null)
+    var result = record.getOrElse(TEMPUS_HINT, null);
     if (result == null) {
-      false;
+      DEBUG(s"Returning false => record with no special keys: ${record.toString()}")
+      return false
     }
-    true;
+    result = record.getOrElse(TEMPUS_TSDS, null)
+    if (result == null) {
+      result=record.getOrElse(TEMPUS_NAMEWELL, null);
+      if (result==null) {
+        DEBUG(s"Returning false => record with no special keys: ${record.toString()}")
+        return false
+      }
+    }
+
+    DEBUG(s"Returning true => record with special keys: ${record.toString()}")
+    true
   }
 
   def toMap(record: String): Map[String, String]= {
     var result = JSON.parseRaw(record).getOrElse(null)
     if (result == null) {
-      var (key1Index, key2Index, key3Index) = (record.indexOf(KEY1), record.indexOf(KEY2), record.indexOf(KEY3))
-      if (key1Index>0 && key2Index>0 && key3Index>0) {
-        Map(
-            ID    -> record.substring(record.indexOf(KEY1)+KEY1.length+1, record.indexOf(KEY2)-3),
-            TSDS  -> record.substring(record.indexOf(KEY2)+KEY2.length+1, record.indexOf(KEY3)-3),
-            VALUE -> record.substring(record.indexOf(KEY3)+KEY3.length+1, record.length-2))
-      } else {
-        WARN(s"Data string found to be null - <${record}>")
-        Map(ID -> null, TSDS -> null, VALUE -> null)
-      }
+      WARN(s"Record could not be parsed as a JSON object: ${record}")
+      Map()
     } else {
       var map = result.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
-      if (map.getOrElse(NAMEWELL, null)==null && map.getOrElse(VALUE, null)==null) {
-        WARN(s"Data does not have value field - <${record}>")
-        map = Map(ID -> null, TSDS -> null, VALUE -> null)
-      }
       map
     }
   }
@@ -127,12 +126,12 @@ object ToKudu {
       log.debug(s)
     }
   }
-  
+
   def ERROR(s: String): Unit={
-      log.error(s)
+    log.error(s)
   }
-  
- 
+
+
   def main(args: Array[String]) : Unit = {
     if (args.length>5) {
       ToKudu.streamDataFromKafkaToKudu(args(0), args(1).split(","), args(2), args(3), args(4), args(5))
