@@ -1,17 +1,19 @@
 package com.hashmapinc.tempus
 
-import org.apache.spark.streaming._
-import org.apache.spark.{SparkConf}
-import org.apache.spark.sql.SparkSession
 
+import com.hashmapinc.tempus.util.TempusKuduConstants
+import org.apache.spark.streaming._
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.streaming.kafka010._
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
 
 import scala.util.parsing.json._
+import org.apache.log4j.{Level, Logger}
 
-import org.apache.log4j.{Logger,Level}
+import scala.collection.mutable
 
 object ToKudu {
   val KUDU_QUICKSTART_CONNECTION_URL = "jdbc:impala://192.168.56.101:21050/kudu_witsml"
@@ -28,6 +30,7 @@ object ToKudu {
   val TEMPUS_HINT="tempus.hint"
   val TEMPUS_TSDS="tempus.tsds"
   val TEMPUS_NAMEWELL="tempus.nameWell"
+
   val log = Logger.getLogger(ToKudu.getClass)
 
   def streamDataFromKafkaToKudu(kafka: String, topics: Array[String], kuduUrl: String=KUDU_QUICKSTART_CONNECTION_URL, userId: String=KUDU_QUICKSTART_USER_ID, password: String=KUDU_QUICKSTART_PASSWORD, level: String="WARN"): Unit = {
@@ -89,8 +92,11 @@ object ToKudu {
     if (result == null) {
       result=record.getOrElse(TEMPUS_NAMEWELL, null);
       if (result==null) {
-        DEBUG(s"Returning false => record with no special keys: ${record.toString()}")
-        return false
+        result=record.getOrElse(TempusKuduConstants.TEMPUS_TRAJECTORY, null);
+         if (result==null) {
+          DEBUG(s"Returning false => record with no special keys: ${record.toString()}")
+          return false
+        }
       }
     }
 
@@ -99,12 +105,14 @@ object ToKudu {
   }
 
   def toMap(record: String): Map[String, String]= {
+
     var result = JSON.parseRaw(record).getOrElse(null)
     if (result == null) {
       WARN(s"Record could not be parsed as a JSON object: ${record}")
       Map()
     } else {
       var map = result.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
+      // WARN(s"  map   : ${map}")
       map
     }
   }

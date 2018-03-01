@@ -3,12 +3,12 @@ package com.hashmapinc.tempus
 import java.sql.DriverManager
 import java.sql.Connection
 import java.sql.PreparedStatement
-import java.util.Properties
 
+
+import com.hashmapinc.tempus.util.TempusKuduConstants
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 
-import scala.collection.mutable.HashMap
 
 object ImpalaWrapper {
   val WELLINFO  = "WELLINFO"
@@ -20,16 +20,23 @@ object ImpalaWrapper {
   val TEMPUS_HINT="tempus.hint"
   val TEMPUS_TSDS="tempus.tsds"
   val TEMPUS_NAMEWELL="tempus.nameWell"
+  val TRAJECTORYINFO  = "TRAJECTORYINFO"
   val CS="cs"
   val SS="ss"
+  val TRAJECTORYSQL = "UPSERT INTO trajectory (namewell,namewellbore,nametrajectory,nametrajectorystn,mdmnvalue,mdmnuom,mdmxvalue,mdmxuom,azivertsectvalue, " +
+    "azivertsectuom,dispnsvertsecorigvalue,dispnsvertsecoriguom,dispewvertsecorigvalue,dispewvertsecoriguom,aziref,cmndatadtimcreation,cmndatadtimlstchange,typetrajstation,mdvalue,mduom,tvdvalue,tvduom," +
+    "inclvalue,incluom,azivalue,aziuom,dispnsvalue,dispnsuom,dispewvalue,dispewuom,vertsectvalue,vertsectuom,dlsvalue,dlsuom,dtimstn,loadtime) " +
+    " values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+
   val specialKeySet = Map(TEMPUS_TSDS->TEMPUS_TSDS, TEMPUS_NAMEWELL->TEMPUS_NAMEWELL, TEMPUS_HINT->TEMPUS_HINT, CS->CS, SS->SS)
   val upsertSQLMap = Map(
     DEPTHLOG -> "UPSERT INTO depth_log (nameWell, nameWellbore, nameLog, mnemonic, depthString, depth, value, value_str) values (?, ?, ?, ?, ?, ?, ?, ?)",
     TIMELOG  -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value, value_str) values (?, ?, ?, ?, ?, ?, ?)",
     MESSAGELOG -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value, value_str) values (?, ?, ?, ?, ?, ?, ?)",
-    WELLINFO  -> "UPSERT INTO well_tempus (namewell, operator, state, county, country, timezone, numapi, statuswell, dtimspud,ekey,well_government_id,loadtime) values (?,?,?,?,?,?,?,?,?,?,?,?)",
-    WELLBOREINFO  -> "UPSERT INTO wellbore_tempus (namewell,namewellbore,statuswellbore,loadtime) values (?,?,?,?)",
-    RIGINFO  -> "UPSERT INTO rig_tempus (namewell,namewellbore,namerig,ownerrig,dtimstartop,loadtime) values (?,?,?,?,?,?)"
+    WELLINFO  -> "UPSERT INTO well (namewell, operator, state, county, country, timezone, numapi, statuswell, dtimspud,ekey,well_government_id,loadtime) values (?,?,?,?,?,?,?,?,?,?,?,?)",
+    WELLBOREINFO  -> "UPSERT INTO wellbore (namewell,namewellbore,statuswellbore,loadtime) values (?,?,?,?)",
+    RIGINFO  -> "UPSERT INTO rig (namewell,namewellbore,namerig,ownerrig,dtimstartop,loadtime) values (?,?,?,?,?,?)",
+    TRAJECTORYINFO  -> TRAJECTORYSQL
   )
   var driverLoaded: Boolean = false
 
@@ -172,8 +179,32 @@ object ImpalaWrapper {
         upsertMessageLog(stmt, rec)
       }
     } else {
-      upsertAttributeInfo(con, rec)
+      val hint = rec(TEMPUS_HINT).toUpperCase()
+
+      if (hint.equalsIgnoreCase(TempusKuduConstants.TEMPUS_TRAJECTORY_HINT)) {
+        upsertTrajectoryInfo(con, rec)
+      }else{
+        upsertAttributeInfo(con, rec)
+      }
     }
+  }
+
+  /**
+    * This method is used to populate Trajectory data
+    * @param con
+    * @param rec
+    */
+  def upsertTrajectoryInfo(con: Connection, rec: Map[String, String]) = {
+    DEBUG("Start upsertTrajectoryInfo")
+    val trajectoryData = rec.getOrElse(TempusKuduConstants.TEMPUS_TRAJECTORY, "")
+
+    if(!trajectoryData.isEmpty){
+      var trajectoryInfo = "TRAJECTORYINFO";
+      val stmt =  con.prepareStatement(upsertSQLMap.getOrElse(trajectoryInfo, null))
+      upsertTrajectory(stmt, rec)
+    }
+
+    DEBUG("End upsertTrajectoryInfo")
   }
 
   def upsertAttributeInfo(con: Connection, rec: Map[String, String]) = {
@@ -183,6 +214,7 @@ object ImpalaWrapper {
     val rigName = rec.getOrElse("nameRig", "")
     val timeZone = rec.getOrElse("timeZone", "")
     val statusWell = rec.getOrElse("statusWell", "")
+    val trajectoryData = rec.getOrElse(TempusKuduConstants.TEMPUS_TRAJECTORY, "")
 
     if(!wellName.isEmpty && !timeZone.isEmpty && !statusWell.isEmpty){
       var wellInfo = "WELLINFO";
@@ -190,7 +222,7 @@ object ImpalaWrapper {
       upsertWellInfo(stmt, rec)
     }
 
-    if(!wellboreName.isEmpty){
+    if(!wellboreName.isEmpty && trajectoryData.isEmpty){
       var wellboreInfo = "WELLBOREINFO";
       val stmt =  con.prepareStatement(upsertSQLMap.getOrElse(wellboreInfo, null))
       upsertWellboreInfo(stmt, rec)
@@ -201,6 +233,13 @@ object ImpalaWrapper {
       val stmt =  con.prepareStatement(upsertSQLMap.getOrElse(rigInfo, null))
       upsertRigInfo(stmt, rec)
     }
+
+    if(!rigName.isEmpty){
+      var rigInfo = "RIGINFO";
+      val stmt =  con.prepareStatement(upsertSQLMap.getOrElse(rigInfo, null))
+      upsertRigInfo(stmt, rec)
+    }
+
     DEBUG("End upsertAttributeInfo")
   }
 
@@ -259,6 +298,144 @@ object ImpalaWrapper {
         case exp: Exception => ERROR(" Error while populating Rig data => "+exp.printStackTrace())
       }
     }
+  }
+
+  /**
+    * This method to used to populate data in trajectory_tempus table
+    * @param stmt
+    * @param trajectoryInfo
+    */
+  def upsertTrajectory(stmt: PreparedStatement, trajectoryInfo: Map[String, String]): Unit = {
+    DEBUG("Start upsertTrajectory")
+
+    if(stmt != null){
+
+      var mdMnValue  = trajectoryInfo.getOrElse("mdMnValue","")
+      var mdMxValue = trajectoryInfo.getOrElse("mdMxValue","")
+      var aziVertSectValue = trajectoryInfo.getOrElse("aziVertSectValue","")
+      var mdValue = trajectoryInfo.getOrElse("mdValue","")
+      var dispNsVertSecOrigValue = trajectoryInfo.getOrElse("dispNsVertSecOrigValue","")
+      var dispEwVertSecOrigValue = trajectoryInfo.getOrElse("dispEwVertSecOrigValue","")
+      var tvdValue = trajectoryInfo.getOrElse("tvdValue","")
+      var inclValue = trajectoryInfo.getOrElse("inclValue","")
+      var aziValue = trajectoryInfo.getOrElse("aziValue","")
+      var dispNsValue = trajectoryInfo.getOrElse("dispNsValue","")
+      var dispEwValue = trajectoryInfo.getOrElse("dispEwValue","")
+      var dlsValue = trajectoryInfo.getOrElse("dlsValue","")
+      var vertSectValue = trajectoryInfo.getOrElse("vertSectValue", "")
+
+
+      stmt.setString(1, trajectoryInfo.getOrElse("nameWell", ""))
+      stmt.setString(2, trajectoryInfo.getOrElse("nameWellbore", ""))
+      stmt.setString(3, trajectoryInfo.getOrElse("nameTrajectory", ""))
+      stmt.setString(4, trajectoryInfo.getOrElse("nameTrajectoryStn", ""))
+
+
+
+      if(!mdMnValue.isEmpty)
+        stmt.setDouble(5, mdMnValue.toDouble)
+      else
+        stmt.setDouble(5, 0)
+
+      stmt.setString(6, trajectoryInfo.getOrElse("mdMnUom", ""))
+
+      if(!mdMxValue.isEmpty)
+        stmt.setDouble(7, mdMxValue.toDouble)
+      else
+        stmt.setDouble(7, 0)
+
+      stmt.setString(8, trajectoryInfo.getOrElse("mdMxUom", ""))
+
+      if(!aziVertSectValue.isEmpty)
+        stmt.setDouble(9, aziVertSectValue.toDouble)
+      else
+        stmt.setDouble(9, 0)
+
+      stmt.setString(10, trajectoryInfo.getOrElse("aziVertSectUom", ""))
+
+      if(!dispNsVertSecOrigValue.isEmpty)
+        stmt.setDouble(11, dispNsVertSecOrigValue.toDouble)
+      else
+        stmt.setDouble(11, 0)
+
+      stmt.setString(12, trajectoryInfo.getOrElse("dispNsVertSecOrigUom", ""))
+
+      if(!dispEwVertSecOrigValue.isEmpty)
+        stmt.setDouble(13, dispEwVertSecOrigValue.toDouble)
+      else
+        stmt.setDouble(13, 0)
+
+      stmt.setString(14, trajectoryInfo.getOrElse("dispEwVertSecOrigUom", ""))
+      stmt.setString(15, trajectoryInfo.getOrElse("aziRef", ""))
+      stmt.setString(16, trajectoryInfo.getOrElse("cmnDataDtimCreation", ""))
+      stmt.setString(17, trajectoryInfo.getOrElse("cmnDataDtimLstChange", ""))
+      stmt.setString(18, trajectoryInfo.getOrElse("trajectoryStnType", ""))
+
+      if(!mdValue.isEmpty)
+       stmt.setDouble(19,mdValue.toDouble)
+      else
+        stmt.setDouble(19,0)
+
+      stmt.setString(20, trajectoryInfo.getOrElse("mdUom", ""))
+
+      if(!tvdValue.isEmpty)
+        stmt.setDouble(21, tvdValue.toDouble)
+      else
+        stmt.setDouble(21, 0)
+
+      stmt.setString(22, trajectoryInfo.getOrElse("tvdUom", ""))
+
+      if(!inclValue.isEmpty)
+        stmt.setDouble(23, inclValue.toDouble)
+      else
+        stmt.setDouble(23, 0)
+
+      stmt.setString(24, trajectoryInfo.getOrElse("inclUom", ""))
+
+      if(!aziValue.isEmpty)
+        stmt.setDouble(25, aziValue.toDouble)
+      else
+        stmt.setDouble(25, 0)
+
+      stmt.setString(26, trajectoryInfo.getOrElse("aziUom", ""))
+
+      if(!dispNsValue.isEmpty)
+        stmt.setDouble(27, dispNsValue.toDouble)
+      else
+        stmt.setDouble(27, 0)
+
+      stmt.setString(28, trajectoryInfo.getOrElse("dispNsUom", ""))
+
+      if(!dispEwValue.isEmpty)
+        stmt.setDouble(29, dispEwValue.toDouble)
+      else
+        stmt.setDouble(29, 0)
+
+      stmt.setString(30, trajectoryInfo.getOrElse("dispEwUom", ""))
+
+      if(!vertSectValue.isEmpty)
+         stmt.setDouble(31, vertSectValue.toDouble)
+      else
+        stmt.setDouble(29, 0)
+
+      stmt.setString(32, trajectoryInfo.getOrElse("vertSectUom", ""))
+
+      if(!dlsValue.isEmpty)
+        stmt.setDouble(33, dlsValue.toDouble)
+      else
+        stmt.setDouble(33, 0)
+
+      stmt.setString(34, trajectoryInfo.getOrElse("dlsUom", ""))
+      stmt.setString(35, trajectoryInfo.getOrElse("dtimStn", ""))
+      stmt.setString(36,getCurrentTime)
+      try{
+        stmt.executeUpdate()
+        stmt.close()
+      }catch{
+        case exp: Exception => ERROR(" Error while populating Trajectory data => "+exp.printStackTrace())
+      }
+    }
+    DEBUG("End upsertTrajectory")
   }
 
   /**

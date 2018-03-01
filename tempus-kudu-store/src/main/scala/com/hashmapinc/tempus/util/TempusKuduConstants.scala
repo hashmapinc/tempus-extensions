@@ -13,5 +13,9 @@ object TempusKuduConstants {
   val KAFKA_URL_PROP = "kafka.url"
   val TOPIC_ATTRIBUTE_PROP = "topic.witsml.attribute"
 
+  val TEMPUS_TRAJECTORY="nameTrajectoryStn"
+
+  val TEMPUS_TRAJECTORY_HINT="TRAJECTORY"
+
 
 }
