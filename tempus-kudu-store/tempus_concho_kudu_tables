@@ -1,0 +1,110 @@
+CREATE TABLE kudu_tempus.well
+(
+namewell string,
+operator string,
+state string,
+county string,
+country string,
+timezone string,
+numapi string,
+statuswell string,
+dtimspud string,
+ekey string,
+well_government_id string,
+loadtime string,
+PRIMARY KEY (namewell)
+)
+partition by hash(namewell) partitions 2 stored as KUDU;
+
+
+CREATE TABLE kudu_tempus.wellbore
+(
+namewell string,
+namewellbore string,
+statuswellbore string,
+loadtime string,
+PRIMARY KEY(namewell,namewellbore)
+)
+partition by hash(namewell) partitions 2 stored as KUDU;
+
+
+CREATE TABLE kudu_tempus.rig
+(
+namewell string,
+namerig string,
+namewellbore string,
+ownerrig string,
+dtimstartop string,
+loadtime string,
+PRIMARY KEY (namewell,namerig)
+)
+partition by hash(namewell,namerig) partitions 2 stored as KUDU;
+
+CREATE TABLE kudu_tempus.depth_log (
+   namewell STRING,
+   namewellbore STRING,
+   namelog STRING,
+   mnemonic STRING,
+   depthstring STRING,
+   depth DOUBLE,
+   value DOUBLE,
+   value_str STRING,
+   PRIMARY KEY (namewell, namewellbore, namelog, mnemonic, depthstring)
+ )
+ PARTITION BY HASH(namewell) PARTITIONS 4
+ STORED AS KUDU ;
+
+CREATE TABLE kudu_tempus.time_log (
+   namewell STRING,
+   namewellbore STRING,
+   namelog STRING,
+   mnemonic STRING,
+   ts STRING,
+   value DOUBLE,
+   value_str STRING,
+   PRIMARY KEY (namewell, namewellbore, namelog, mnemonic, ts)
+ )
+ PARTITION BY HASH(namewell) PARTITIONS 4
+ STORED AS KUDU ;
+
+CREATE TABLE kudu_tempus.trajectory
+(
+nameWell string not null,
+nameWellbore string not null,
+nameTrajectory string not null,
+nameTrajectoryStn string not null,
+mdMnValue double,
+mdMnUom string,
+mdMxValue double,
+mdMxUom string,
+aziVertSectValue double,
+aziVertSectUom string,
+dispNsVertSecOrigValue double,
+dispNsVertSecOrigUom string,
+dispEwVertSecOrigValue double,
+dispEwVertSecOrigUom string,
+aziRef string,
+cmnDataDtimCreation string,
+cmnDataDtimLstChange string,
+typeTrajStation string,
+mdValue double,
+mdUom string,
+tvdValue double,
+tvdUom string,
+inclValue double,
+inclUom string,
+aziValue double,
+aziUom string,
+dispNsValue double,
+dispNsUom string,
+dispEwValue double,
+dispEwUom string,
+vertSectValue double,
+vertSectUom string,
+dlsValue double,
+dlsUom string,
+dtimStn string,
+loadtime string,
+PRIMARY KEY (nameWell, nameWellbore,nameTrajectory,nameTrajectoryStn)
+)
+partition by hash(nameWell) partitions 2 stored as KUDU;
