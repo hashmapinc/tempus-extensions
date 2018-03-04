@@ -183,6 +183,14 @@
 			<name>Cloudera Releases</name>
 			<url>https://repository.cloudera.com/content/repositories/releases/</url>
 		</repository>
+		<repository>
+			<id>cdh.repo</id>
+			<name>Cloudera Repositories</name>
+			<url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
 	</repositories>
 
 	<dependencies>
@@ -243,6 +251,16 @@
 			<groupId>org.scalanlp</groupId>
 			<artifactId>breeze_${scala.compat.version}</artifactId>
 			<version>0.13.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.kudu</groupId>
+			<artifactId>kudu-client</artifactId>
+			<version>1.5.0-cdh5.13.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.kudu</groupId>
+			<artifactId>kudu-spark_2.10</artifactId>
+			<version>1.5.0-cdh5.13.0</version>
 		</dependency>
 	</dependencies>
 
