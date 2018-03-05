@@ -1,6 +1,6 @@
 {
-  "name": "Well depth log Rule",
-  "state": "SUSPENDED",
+  "name": "Witsml depth log Rule",
+  "state": "ACTIVE",
   "weight": 0,
   "pluginToken": "kafka-spark-streaming-sample",
   "filters": [
@@ -19,7 +19,7 @@
     "configuration": {
       "sync": true,
       "topic": "well-log-ds-data",
-      "template": "#if ($tags.size()>0)\n{\"tempus.hint\": \"DEPTHLOG\", #foreach ($tag in $tags)\"$tag.key\": \"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()), \"tempus.tsds\": \"$tag.ds\"#end#end, \"ss\": \"$ss\", \"cs\": \"$cs\"}\n#end"
+      "template": "#if ($tags.size()>0)\n#foreach ($tag in $tags)\n#if(!$tag.key.contains(\"Traj\")) \n{\"tempus.hint\": \"DEPTHLOG\", \"$tag.key\": \"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()), \"tempus.tsds\":\"$tag.ds\"#end, \"ss\": \"$ss\", \"cs\": \"$cs\" #end}#end#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WellDepthLog"

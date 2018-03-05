@@ -19,7 +19,7 @@
     "configuration": {
       "sync": true,
       "topic": "well-trajectory-data",
-      "template": "#if ($tags.size()>0)\n#foreach ($tag in $tags)$tag.valueAsString\n#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size())#end#end\n#end"
+      "template": "#if ($tags.size()>0)\n#foreach ($tag in $tags) \n#if($tag.key.contains(\"Traj\"))\n     $tag.valueAsString\n     #if($velocityCount < $tags.size()), #end\n     #if($velocityCount == $tags.size())#end\n#end#end#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WITSMLTrajectoryData"

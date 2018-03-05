@@ -1,6 +1,6 @@
 {
-  "name": "Well time log Rule",
-  "state": "SUSPENDED",
+  "name": "Witsml time log Rule",
+  "state": "ACTIVE",
   "weight": 0,
   "pluginToken": "kafka-spark-streaming-sample",
   "filters": [
@@ -19,7 +19,7 @@
     "configuration": {
       "sync": true,
       "topic": "well-log-ts-data",
-      "template": "#if ($tags.size()>0)\n{\"tempus.hint\": \"TIMELOG\", #foreach ($tag in $tags)\"$tag.key\": \"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()), \"tempus.tsds\": \"$tag.ts\"#end#end, \"ss\": \"$ss\", \"cs\": \"$cs\"}\n#end"
+      "template": "#if ($tags.size()>0)\n#foreach ($tag in $tags) \n#if($tag.key!=\"Message\")\n{\"tempus.hint\": \"TIMELOG\",  \"$tag.key\": \"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()), \"tempus.tsds\": \"$tag.ts\", \"ss\": \"$ss\", \"cs\": \"$cs\" #end}#end#end#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WellTimeLog"
