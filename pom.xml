@@ -23,5 +23,6 @@
         <module>tempus-kudu-store</module>
         <module>tempus-rateofchange/ratechange</module>
         <module>tempus-WindSpeedGeoAggregator</module>
+        <module>tempus-datastream</module>
     </modules>
 </project>
