@@ -22,7 +22,7 @@ object ToKudu2 {
 
   def streamDataFromKafkaToKudu(kafka: String, topics: Array[String], kuduUrl: String, level: String="WARN"): Unit = {
     val kafkaParams = Map[String, Object](
-      "bootstrap.servers" -> "kafka:9092", //kafka,
+      "bootstrap.servers" -> kafka , //kafka,
       "key.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer", //classOf[StringDeserializer],
       "value.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer", //classOf[StringDeserializer],
       "group.id" -> "well-log-ds-data", //topics(0),
