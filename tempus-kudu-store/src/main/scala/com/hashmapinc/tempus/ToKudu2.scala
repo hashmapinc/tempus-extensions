@@ -1,11 +1,8 @@
 package com.hashmapinc.tempus
 
-import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.sql.{SQLContext, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.kudu.spark.kudu._
-import org.apache.kudu.client._
-import org.apache.spark.sql.functions._
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
@@ -36,14 +33,14 @@ object ToKudu2 {
     val sc = new SparkContext(sparkConf)
     val sqlContext = new SQLContext(sc)
     import sqlContext.implicits._
-    val master1 = "192.168.56.101:7051"
-    val kuduMasters = Seq(master1).mkString(",")
-    val kuduContext = new KuduContext(kuduMasters, sc)
+   // val master1 = "192.168.56.101:7051"
+  //  val kuduMasters = Seq(master1).mkString(",")
+   // val kuduContext = new KuduContext(kuduMasters, sc)
 
     var kuduTableName = "depth_log"
-    val kuduOptions: Map[String, String] = Map(
+    /*val kuduOptions: Map[String, String] = Map(
       "kudu.table"  -> kuduTableName,
-      "kudu.master" -> kuduMasters)
+      "kudu.master" -> kuduMasters)*/
 
     val ssc =new StreamingContext(sc, Seconds(20))
 
@@ -67,6 +64,9 @@ object ToKudu2 {
     values.foreachRDD(rdd =>{
       INFO("before upserting")
       //rdd.toDF().write.options(kuduOptions).mode("append").kudu
+
+      rdd.toDF().write.options(Map("kudu.table" -> "impala::kudu_tempus.depth_log","kudu.master" -> "cmas03-mid-tst.conchoresources.com:7051")).mode("append").kudu
+
       rdd.toDF().show(false)
       INFO("after upserting")
     })

@@ -61,6 +61,13 @@ object ToKudu {
                         .filter(_.length>0)                     //Ignore empty lines
                         .map(toMap(_))
                         .filter(isNonEmptyRecord(_))            //Ignore empty records - id for growing objects and nameWell for attributes
+/*
+    values.foreachRDD { rdd =>
+      //extracting the values only
+      val DF = spark.read.json(rdd.map(x => x._2))
+      DF.show()
+    }*/
+
 
     values.foreachRDD(rdd =>{
       if (!rdd.isEmpty()) {

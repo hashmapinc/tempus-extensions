@@ -23,10 +23,10 @@ object ImpalaWrapper {
   val TRAJECTORYINFO  = "TRAJECTORYINFO"
   val CS="cs"
   val SS="ss"
-  val TRAJECTORYSQL = "UPSERT INTO trajectory (namewell,namewellbore,nametrajectory,nametrajectorystn,mdmnvalue,mdmnuom,mdmxvalue,mdmxuom,azivertsectvalue, " +
+  val TRAJECTORYSQL = "UPSERT INTO trajectory (namewell,namewellbore,nametrajectory,nametrajectorystn,azivertsectvalue, " +
     "azivertsectuom,dispnsvertsecorigvalue,dispnsvertsecoriguom,dispewvertsecorigvalue,dispewvertsecoriguom,aziref,cmndatadtimcreation,cmndatadtimlstchange,typetrajstation,mdvalue,mduom,tvdvalue,tvduom," +
     "inclvalue,incluom,azivalue,aziuom,dispnsvalue,dispnsuom,dispewvalue,dispewuom,vertsectvalue,vertsectuom,dlsvalue,dlsuom,dtimstn,loadtime) " +
-    " values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    " values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
   val specialKeySet = Map(TEMPUS_TSDS->TEMPUS_TSDS, TEMPUS_NAMEWELL->TEMPUS_NAMEWELL, TEMPUS_HINT->TEMPUS_HINT, CS->CS, SS->SS)
   val upsertSQLMap = Map(
@@ -332,7 +332,7 @@ object ImpalaWrapper {
 
 
 
-      if(!mdMnValue.isEmpty)
+      /*if(!mdMnValue.isEmpty)
         stmt.setDouble(5, mdMnValue.toDouble)
       else
         stmt.setDouble(5, 0)
@@ -344,90 +344,90 @@ object ImpalaWrapper {
       else
         stmt.setDouble(7, 0)
 
-      stmt.setString(8, trajectoryInfo.getOrElse("mdMxUom", ""))
+      stmt.setString(8, trajectoryInfo.getOrElse("mdMxUom", ""))*/
 
       if(!aziVertSectValue.isEmpty)
-        stmt.setDouble(9, aziVertSectValue.toDouble)
+        stmt.setDouble(5, aziVertSectValue.toDouble)
+      else
+        stmt.setDouble(5, 0)
+
+      stmt.setString(6, trajectoryInfo.getOrElse("aziVertSectUom", ""))
+
+      if(!dispNsVertSecOrigValue.isEmpty)
+        stmt.setDouble(7, dispNsVertSecOrigValue.toDouble)
+      else
+        stmt.setDouble(7, 0)
+
+      stmt.setString(8, trajectoryInfo.getOrElse("dispNsVertSecOrigUom", ""))
+
+      if(!dispEwVertSecOrigValue.isEmpty)
+        stmt.setDouble(9, dispEwVertSecOrigValue.toDouble)
       else
         stmt.setDouble(9, 0)
 
-      stmt.setString(10, trajectoryInfo.getOrElse("aziVertSectUom", ""))
-
-      if(!dispNsVertSecOrigValue.isEmpty)
-        stmt.setDouble(11, dispNsVertSecOrigValue.toDouble)
-      else
-        stmt.setDouble(11, 0)
-
-      stmt.setString(12, trajectoryInfo.getOrElse("dispNsVertSecOrigUom", ""))
-
-      if(!dispEwVertSecOrigValue.isEmpty)
-        stmt.setDouble(13, dispEwVertSecOrigValue.toDouble)
-      else
-        stmt.setDouble(13, 0)
-
-      stmt.setString(14, trajectoryInfo.getOrElse("dispEwVertSecOrigUom", ""))
-      stmt.setString(15, trajectoryInfo.getOrElse("aziRef", ""))
-      stmt.setString(16, trajectoryInfo.getOrElse("cmnDataDtimCreation", ""))
-      stmt.setString(17, trajectoryInfo.getOrElse("cmnDataDtimLstChange", ""))
-      stmt.setString(18, trajectoryInfo.getOrElse("trajectoryStnType", ""))
+      stmt.setString(10, trajectoryInfo.getOrElse("dispEwVertSecOrigUom", ""))
+      stmt.setString(11, trajectoryInfo.getOrElse("aziRef", ""))
+      stmt.setString(12, trajectoryInfo.getOrElse("cmnDataDtimCreation", ""))
+      stmt.setString(13, trajectoryInfo.getOrElse("cmnDataDtimLstChange", ""))
+      stmt.setString(14, trajectoryInfo.getOrElse("trajectoryStnType", ""))
 
       if(!mdValue.isEmpty)
-       stmt.setDouble(19,mdValue.toDouble)
+       stmt.setDouble(15,mdValue.toDouble)
       else
-        stmt.setDouble(19,0)
+        stmt.setDouble(15,0)
 
-      stmt.setString(20, trajectoryInfo.getOrElse("mdUom", ""))
+      stmt.setString(16, trajectoryInfo.getOrElse("mdUom", ""))
 
       if(!tvdValue.isEmpty)
-        stmt.setDouble(21, tvdValue.toDouble)
+        stmt.setDouble(17, tvdValue.toDouble)
+      else
+        stmt.setDouble(17, 0)
+
+      stmt.setString(18, trajectoryInfo.getOrElse("tvdUom", ""))
+
+      if(!inclValue.isEmpty)
+        stmt.setDouble(19, inclValue.toDouble)
+      else
+        stmt.setDouble(19, 0)
+
+      stmt.setString(20, trajectoryInfo.getOrElse("inclUom", ""))
+
+      if(!aziValue.isEmpty)
+        stmt.setDouble(21, aziValue.toDouble)
       else
         stmt.setDouble(21, 0)
 
-      stmt.setString(22, trajectoryInfo.getOrElse("tvdUom", ""))
+      stmt.setString(22, trajectoryInfo.getOrElse("aziUom", ""))
 
-      if(!inclValue.isEmpty)
-        stmt.setDouble(23, inclValue.toDouble)
+      if(!dispNsValue.isEmpty)
+        stmt.setDouble(23, dispNsValue.toDouble)
       else
         stmt.setDouble(23, 0)
 
-      stmt.setString(24, trajectoryInfo.getOrElse("inclUom", ""))
+      stmt.setString(24, trajectoryInfo.getOrElse("dispNsUom", ""))
 
-      if(!aziValue.isEmpty)
-        stmt.setDouble(25, aziValue.toDouble)
+      if(!dispEwValue.isEmpty)
+        stmt.setDouble(25, dispEwValue.toDouble)
       else
         stmt.setDouble(25, 0)
 
-      stmt.setString(26, trajectoryInfo.getOrElse("aziUom", ""))
+      stmt.setString(26, trajectoryInfo.getOrElse("dispEwUom", ""))
 
-      if(!dispNsValue.isEmpty)
-        stmt.setDouble(27, dispNsValue.toDouble)
+      if(!vertSectValue.isEmpty)
+         stmt.setDouble(27, vertSectValue.toDouble)
       else
         stmt.setDouble(27, 0)
 
-      stmt.setString(28, trajectoryInfo.getOrElse("dispNsUom", ""))
-
-      if(!dispEwValue.isEmpty)
-        stmt.setDouble(29, dispEwValue.toDouble)
-      else
-        stmt.setDouble(29, 0)
-
-      stmt.setString(30, trajectoryInfo.getOrElse("dispEwUom", ""))
-
-      if(!vertSectValue.isEmpty)
-         stmt.setDouble(31, vertSectValue.toDouble)
-      else
-        stmt.setDouble(29, 0)
-
-      stmt.setString(32, trajectoryInfo.getOrElse("vertSectUom", ""))
+      stmt.setString(28, trajectoryInfo.getOrElse("vertSectUom", ""))
 
       if(!dlsValue.isEmpty)
-        stmt.setDouble(33, dlsValue.toDouble)
+        stmt.setDouble(29, dlsValue.toDouble)
       else
-        stmt.setDouble(33, 0)
+        stmt.setDouble(29, 0)
 
-      stmt.setString(34, trajectoryInfo.getOrElse("dlsUom", ""))
-      stmt.setString(35, trajectoryInfo.getOrElse("dtimStn", ""))
-      stmt.setString(36,getCurrentTime)
+      stmt.setString(30, trajectoryInfo.getOrElse("dlsUom", ""))
+      stmt.setString(31, trajectoryInfo.getOrElse("dtimStn", ""))
+      stmt.setString(32,getCurrentTime)
       try{
         stmt.executeUpdate()
         stmt.close()
