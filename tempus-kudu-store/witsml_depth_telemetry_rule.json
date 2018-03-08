@@ -9,7 +9,9 @@
       "name": "TelemetryFilter",
       "configuration": {
         "messageTypes": [
-          "POST_TELEMETRY_DEPTH"
+          "POST_TELEMETRY_DEPTH",
+          "POST_ATTRIBUTES",
+          "GET_ATTRIBUTES"
         ]
       }
     }

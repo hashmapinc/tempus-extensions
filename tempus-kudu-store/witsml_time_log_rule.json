@@ -1,5 +1,5 @@
 {
-  "name": "Witsml time log Rule",
+  "name": "Witmsl time log Rule",
   "state": "ACTIVE",
   "weight": 0,
   "pluginToken": "kafka-spark-streaming-sample",
@@ -19,7 +19,7 @@
     "configuration": {
       "sync": true,
       "topic": "well-log-ts-data",
-      "template": "#if ($tags.size()>0)\n#foreach ($tag in $tags) \n#if($tag.key!=\"Message\")\n{\"tempus.hint\": \"TIMELOG\",  \"$tag.key\": \"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()), \"tempus.tsds\": \"$tag.ts\", \"ss\": \"$ss\", \"cs\": \"$cs\" #end}#end#end#end"
+      "template": "#if ($tags.size()>0){#foreach ($tag in $tags)\n#if(!$tag.key.contains(\"Message\")) \n#set ($index = $tag.key.indexOf(\"@\"))\n#set ($index1 = $tag.key.indexOf(\"@\")+1)\n\"$tag.key.substring(0,$index)\":\"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()),\"LogName\":\"$tag.key.substring($index1)\", \"tempus.tsds\": \"$tag.ts\", \"nameWell\": \"$cs.nameWell\", \"nameWellbore\": \"$cs.nameWellbore\",\"tempus.hint\": \"TIMELOG\"#end#end#end}#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WellTimeLog"

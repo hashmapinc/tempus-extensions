@@ -19,7 +19,7 @@
     "configuration": {
       "sync": true,
       "topic": "well-log-msg-data",
-      "template": "#if ($tags.size()>0)\n#foreach ($tag in $tags) \n#if($tag.key==\"Message\") \n{\"tempus.hint\": \"MESSAGELOG\", \"$tag.key\": \"$tag.valueAsString\"\n#if($velocityCount < $tags.size()), #end\n#if($velocityCount == $tags.size()), \"tempus.tsds\": \"$tag.ts\", \"ss\": \"$ss\", \"cs\": \"$cs\" #end}#end#end#end"
+      "template": "#if ($tags.size()>0){#foreach ($tag in $tags)\n#if($tag.key.contains(\"Message\"))\n\"$tag.key\":\"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()),\"tempus.tsds\": \"$tag.ts\", \"nameWell\": \"$cs.nameWell\", \"nameWellbore\": \"$cs.nameWellbore\",\"tempus.hint\": \"MESSAGELOG\"#end#end#end}#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WellMessageLog"

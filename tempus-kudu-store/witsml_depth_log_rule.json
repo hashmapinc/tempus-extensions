@@ -1,5 +1,5 @@
 {
-  "name": "Witsml depth log Rule",
+  "name": "WITSML depth log Rule",
   "state": "ACTIVE",
   "weight": 0,
   "pluginToken": "kafka-spark-streaming-sample",
@@ -19,7 +19,7 @@
     "configuration": {
       "sync": true,
       "topic": "well-log-ds-data",
-      "template": "#if ($tags.size()>0)\n#foreach ($tag in $tags)\n#if(!$tag.key.contains(\"Traj\")) \n{\"tempus.hint\": \"DEPTHLOG\", \"$tag.key\": \"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()), \"tempus.tsds\":\"$tag.ds\"#end, \"ss\": \"$ss\", \"cs\": \"$cs\" #end}#end#end"
+      "template": "#if ($tags.size()>0){#foreach ($tag in $tags)\n#if(!$tag.key.contains(\"Traj\")) \n#set ($index = $tag.key.indexOf(\"@\"))\n#set ($index1 = $tag.key.indexOf(\"@\")+1)\n\"$tag.key.substring(0,$index)\":\"$tag.valueAsString\"#if($velocityCount < $tags.size()), #end#if($velocityCount == $tags.size()),\"LogName\":\"$tag.key.substring($index1)\", \"tempus.tsds\": \"$tag.ds\", \"nameWell\": \"$cs.nameWell\", \"nameWellbore\": \"$cs.nameWellbore\",\"tempus.hint\": \"DEPTHLOG\"#end#end#end}#end"
     },
     "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
     "name": "WellDepthLog"

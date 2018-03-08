@@ -1,6 +1,6 @@
 {
   "name": "WITSML Attribute Rule",
-  "state": "SUSPENDED",
+  "state": "ACTIVE",
   "weight": 0,
   "pluginToken": "kafka-spark-streaming-sample",
   "filters": [
