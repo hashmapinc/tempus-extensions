@@ -18,8 +18,8 @@ object TempusPublisher {
     options.setMaxInflight(MAX_INFLIGHT_SIZE)
     options.setUserName(gatewayToken)
     client.connect(options, null, new IMqttActionListener{
-      def onFailure(x1: IMqttToken,x2: Throwable): Unit ={}
-      def onSuccess(x1: IMqttToken): Unit = {}
+      def onFailure(x1: IMqttToken,x2: Throwable): Unit ={ INFO(s" onFailure  ${mqttUrl}")}
+      def onSuccess(x1: IMqttToken): Unit = { INFO(s" onSuccess  ${mqttUrl}")}
     }).waitForCompletion()
 
     client

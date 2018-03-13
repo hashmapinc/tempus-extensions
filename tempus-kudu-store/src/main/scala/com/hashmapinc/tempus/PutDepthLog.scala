@@ -8,12 +8,17 @@ import org.apache.log4j.{Level, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
-import org.apache.spark.streaming.kafka010.KafkaUtils
+import org.apache.spark.streaming.kafka010.ConsumerStrategies._
+import org.apache.spark.streaming.kafka010.{ConsumerStrategies, HasOffsetRanges, KafkaUtils}
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.apache.kudu.spark.kudu._
 
 import scala.util.parsing.json.{JSON, JSONObject}
+import org.apache.kafka.common.TopicPartition
+
+
+
+
 
 /**
   * @author Mitesh Rathore
@@ -24,12 +29,13 @@ object PutDepthLog {
   val log = Logger.getLogger(PutDataInKudu.getClass)
   val specialKeySet = Map("tempus.tsds"->"tempus.tsds", "tempus.hint"->"tempus.hint", "nameWell"->"nameWell", "nameWellbore"->"nameWellbore", "LogName"->"LogName")
 
-  def streamDataFromKafkaToKudu(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String, level: String="WARN"): Unit = {
+  val groupId = "DEPTH"
+  def streamDataFromKafkaToKudu(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String,impalaKuduUrl:String,kuduUser:String,kuduPassword:String, level: String="WARN"): Unit = {
     val kafkaParams = Map[String, Object](
       "bootstrap.servers" -> kafkaUrl , //kafka,
       "key.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer", //classOf[StringDeserializer],
       "value.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer", //classOf[StringDeserializer],
-      "group.id" -> topics(0),
+      "group.id" -> groupId,
       "auto.offset.reset" -> "latest",
       "enable.auto.commit" -> (false: java.lang.Boolean)
     )
@@ -38,28 +44,40 @@ object PutDepthLog {
     val sqlContext = new SQLContext(sc)
     import sqlContext.implicits._
 
+    val ssc = new StreamingContext(sc, Seconds(10))
+    val con =  TempusKuduConstants.getImpalaConnection(impalaKuduUrl, kuduUser, kuduPassword)
+    val fromOffsets= TempusKuduConstants.getLastCommittedOffsets(con,topics(0),groupId)
+    val stream = KafkaUtils.createDirectStream[String, String](ssc , PreferConsistent, ConsumerStrategies.Subscribe[String, String](topics, kafkaParams,fromOffsets))
 
-
-
-    val ssc = new StreamingContext(sc, Seconds(1))
-
-    val stream = KafkaUtils
-      .createDirectStream[String, String](ssc, PreferConsistent, Subscribe[String, String](topics, kafkaParams))
-
-
-
-    val values  = stream.map(_.value())
+  /*  val values  = stream.map(_.value())
       .filter(_.length>0)                     //Ignore empty lines
       .map(toMap(_)).filter(_.size>0)
       .flatMap(toDepthLog(_))            //Ignore empty records - id for growing objects and nameWell for attributes
 
-
-
-
-    values.foreachRDD(rdd =>{
+*/
+    stream
+      .transform {
+        rdd =>
+         val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+          offsetRanges.foreach(offset => {
+            println(" ============================= "+offset.topic,offset.partition, offset.fromOffset, offset.untilOffset)
+            TempusKuduConstants.saveOffsets(con,topics(0),groupId,offset.untilOffset)
+          })
+       rdd
+      }.map(_.value())
+      .filter(_.length>0)                     //Ignore empty lines
+      .map(toMap(_)).filter(_.size>0)
+      .flatMap(toDepthLog(_)).foreachRDD(rdd =>{
       INFO("before upserting")
+
+     // val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+
+
       rdd.toDF().write.options(Map("kudu.table" -> kuduTableName,"kudu.master" -> kuduUrl)).mode("append").kudu
-      rdd.toDF().show(false)
+
+
+
+      //rdd.toDF().show(false)
       INFO("after upserting")
     })
 
@@ -110,117 +128,6 @@ object PutDepthLog {
     dla
   }
 
-  def toTrajectory(map: Map[String, String]): Trajectory= {
-
-    var nameWell = map("nameWell")
-    var nameWellbore = map("nameWellbore")
-    var nameTrajectory = map("nameTrajectory")
-    var nameTrajectoryStn = map("nameTrajectoryStn")
-    var aziVertSectUom = map("aziVertSectUom")
-    var mdUom = map("mdUom")
-
-    var tvdUom = map("tvdUom")
-    var inclUom = map("inclUom")
-    var aziUom = map("aziUom")
-    var dispNsUom = map("dispNsUom")
-
-    var dispEwUom = map("dispEwUom")
-    var vertSectUom = map("vertSectUom")
-    var dlsUom = map("dlsUom")
-
-
-
-
-    var aziVertSectValue  = map("aziVertSectValue")
-    var aziVertSectValueDouble = 0.0
-    if(!aziVertSectValue.isEmpty){
-      aziVertSectValueDouble = aziVertSectValue.toDouble
-    }
-
-    var mdValue = map("mdValue")
-    var mdValueDouble = 0.0
-    if(!mdValue.isEmpty){
-      mdValueDouble = mdValue.toDouble
-    }
-
-
-    var dispNsVertSecOrigValue = map("dispNsVertSecOrigValue")
-    var dispNsVertSecOrigValueDouble = 0.0
-    if(!dispNsVertSecOrigValue.isEmpty){
-      dispNsVertSecOrigValueDouble = dispNsVertSecOrigValue.toDouble
-    }
-
-
-    var dispEwVertSecOrigValue = map("dispEwVertSecOrigValue")
-    var dispEwVertSecOrigValueDouble = 0.0
-    if(!dispEwVertSecOrigValue.isEmpty){
-      dispEwVertSecOrigValueDouble = dispEwVertSecOrigValue.toDouble
-    }
-
-    var tvdValue = map("tvdValue")
-    var tvdValueDouble = 0.0
-    if(!tvdValue.isEmpty){
-      tvdValueDouble = tvdValue.toDouble
-    }
-
-    var inclValue = map("inclValue")
-    var inclValueDouble = 0.0
-    if(!inclValue.isEmpty){
-      inclValueDouble = inclValue.toDouble
-    }
-
-
-    var aziValue = map("aziValue")
-    var aziValueDouble = 0.0
-    if(!aziValue.isEmpty){
-      aziValueDouble = aziValue.toDouble
-    }
-
-    var dispNsValue = map("dispNsValue")
-    var dispNsValueDouble = 0.0
-    if(!dispNsValue.isEmpty){
-      dispNsValueDouble = dispNsValue.toDouble
-    }
-
-
-
-    var dispEwValue = map("dispEwValue")
-    var dispEwValueDouble = 0.0
-    if(!dispEwValue.isEmpty){
-      dispEwValueDouble = dispEwValue.toDouble
-    }
-
-    var dlsValue = map("dlsValue")
-    var dlsValueDouble = 0.0
-    if(!dlsValue.isEmpty){
-      dlsValueDouble = dlsValue.toDouble
-    }
-
-    var vertSectValue = map("vertSectValue")
-    var vertSectValueDouble = 0.0
-    if(!vertSectValue.isEmpty){
-      vertSectValueDouble = vertSectValue.toDouble
-    }
-
-
-    var dispEwVertSecOrigUom = map("dispEwVertSecOrigUom")
-    var aziRef = map("aziRef")
-    var cmnDataDtimCreation = map("cmnDataDtimCreation")
-    var cmnDataDtimLstChange = map("cmnDataDtimLstChange")
-    var trajectoryStnType = map("trajectoryStnType")
-
-    var dtimStn = map("dtimStn")
-
-
-    Trajectory(nameWell, nameWellbore, nameTrajectory, nameTrajectoryStn, aziVertSectValueDouble,aziVertSectUom,
-      dispEwVertSecOrigValueDouble,dispEwVertSecOrigUom,dispEwVertSecOrigValueDouble,dispEwVertSecOrigUom,
-      aziRef,cmnDataDtimCreation,cmnDataDtimLstChange,trajectoryStnType,mdValueDouble,mdUom,tvdValueDouble,tvdUom,
-      inclValueDouble,inclUom,aziValueDouble,aziUom,dispNsValueDouble,dispNsUom,dispEwValueDouble,dispEwUom,
-      vertSectValueDouble,vertSectUom,dlsValueDouble,dlsUom,dtimStn,TempusKuduConstants.getCurrentTime)
-
-
-
-  }
 
 
 
@@ -240,6 +147,7 @@ object PutDepthLog {
     var topicName = ""
     var logLevel = ""
     var kuduTableName = "impala::kudu_tempus.depth_log"
+    var impalaKuduUrl = ""
 
 
     try{
@@ -252,6 +160,8 @@ object PutDepthLog {
       kuduConnectionPassword = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_PASSWORD_PROP)
       logLevel = prop.getProperty(TempusKuduConstants.LOG_LEVEL)
       topicName = prop.getProperty(TempusKuduConstants.TOPIC_DEPTHLOG_PROP)
+
+      impalaKuduUrl = prop.getProperty(TempusKuduConstants.KUDU_IMPALA_CONNECTION_URL_PROP)
 
       kuduTableName = "impala::"+prop.getProperty(TempusKuduConstants.KUDU_DEPTHLOG_TABLE)
 
@@ -268,7 +178,7 @@ object PutDepthLog {
           "topic.witsml.attribute=well-attribute-data --- >> ")
       }
       else{
-        PutDepthLog.streamDataFromKafkaToKudu(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,logLevel)
+        PutDepthLog.streamDataFromKafkaToKudu(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,impalaKuduUrl,kuduConnectionUser,kuduConnectionPassword,logLevel)
       }
 
 

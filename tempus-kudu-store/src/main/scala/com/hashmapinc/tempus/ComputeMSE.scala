@@ -1,5 +1,8 @@
 package com.hashmapinc.tempus
 
+import java.io.FileInputStream
+import java.util.Properties
+
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.SparkConf
@@ -12,25 +15,35 @@ import org.apache.spark.streaming.kafka010._
 import scala.util.parsing.json._
 import scala.collection.mutable.HashMap
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.hashmapinc.tempus.util.TempusKuduConstants
+
+import scala.tools.scalap.scalax.util.StringUtil
+
 
 object ComputeMSE {
   val logLevelMap = Map("INFO"->Level.INFO, "WARN"->Level.WARN, "DEBUG"->Level.DEBUG)
-  val log = Logger.getLogger(ToKudu.getClass)
-  val MQTT_TOPIC: String = "v1/gateway/depth/telemetry"
+  val log = Logger.getLogger(ComputeMSE.getClass)
 
-  def streamComputedMSE(kafka: String, topics: Array[String], groupid: String, mqttUrl: String, gatewayToken: String, level: String="WARN"): Unit = {
+  var torKey :String = "";
+  var wobKey :String = "";
+  var rpmKey :String = "";
+  var ropKey :String = "";
+  var mnemonicName :String = "";
+
+
+  def streamComputedMSE(kafka: String, topics: Array[String], mqttUrl: String, gatewayToken: String, mqttTopic:String, level: String="WARN"): Unit = {
     log.setLevel(logLevelMap(level))
     TempusPublisher.setLogLevel(logLevelMap(level))
     val kafkaParams = Map[String, Object](
       "bootstrap.servers" -> kafka,
       "key.deserializer" -> classOf[StringDeserializer],
       "value.deserializer" -> classOf[StringDeserializer],
-      "group.id" -> groupid,
+      "group.id" -> topics(0),
       "auto.offset.reset" -> "latest",
       "enable.auto.commit" -> (false: java.lang.Boolean)
     )
     val sparkConf = new SparkConf().setAppName("ComputeMSE")
-    val ssc = new StreamingContext(sparkConf, Minutes(1))
+    val ssc = new StreamingContext(sparkConf, Seconds(1))
     ssc.sparkContext.setLogLevel("WARN")
 
     val stream = KafkaUtils
@@ -45,20 +58,24 @@ object ComputeMSE {
                         .filter(isValidRecord(_))            //Ignore empty records - id for growing objects and nameWell for attributes
                         .map(computeMSE(_))
 
+   // var con : MqttAsyncClient = null
+   //   if(con==null){
+
+    //  }
+
     values.foreachRDD(rdd =>{
       if (!rdd.isEmpty()) {
         rdd.foreachPartition { p =>
           val con = TempusPublisher.connect(mqttUrl, gatewayToken)
+          p.foreach(record => TempusPublisher.publishMSE(con, mqttTopic, toTempusData(record)))
 
-          p.foreach(record => TempusPublisher.publishMSE(con, MQTT_TOPIC, toTempusData(record)))
-
-          con.disconnect()
         }
       }
     })
 
     ssc.start()
     ssc.awaitTermination()
+   // con.disconnect()
   }
 
   def toTempusData(record: Map[String, String]): String = {
@@ -68,22 +85,38 @@ object ComputeMSE {
     var obj=ja.addObject()
     obj.put("ds", record.getOrElse("tempus.tsds", "0.00"))
     obj=obj.putObject("values")
-    val key=record.getOrElse("MSE", "MSE")
-    obj.put(key, record.getOrElse(key, "0.00"))
+    val key=record.getOrElse(mnemonicName, "CALC_MSE")
+    var mseValue : Double = 0.0
+    var keyValue = record.getOrElse(key, "")
+
+   // INFO("  keyValue ===>>> "+keyValue)
+
+    if(!keyValue.isEmpty)
+      mseValue = keyValue.toDouble
+
+   // INFO("  mseValue ===>>> "+mseValue)
+
+    obj.put(key, mseValue)
     INFO(s"Publishing: ${mapper.writeValueAsString(json)}")
     mapper.writeValueAsString(json)
   }
 
   def computeMSE(record: Map[String, String]): Map[String, String]={
-    val tor: Double = record.getOrElse("TOR", 1.0).toString.toDouble
-    val rpm: Double = record.getOrElse("RPM", 1.0).toString.toDouble
-    val rop: Double = record.getOrElse("ROP", 1.0).toString.toDouble
-    val wob: Double = record.getOrElse("WOB", 1.0).toString.toDouble
+    val tor: Double = record.getOrElse(torKey, 1.0).toString.toDouble
+    val rpm: Double = record.getOrElse(rpmKey, 1.0).toString.toDouble
+    val rop: Double = record.getOrElse(ropKey, 1.0).toString.toDouble
+    val wob: Double = record.getOrElse(wobKey, 1.0).toString.toDouble
     val dia: Double = record.getOrElse("diameter", 1.0).toString.toDouble
     val diaSquare = dia * dia
+
+    //Mechanical Specific Energy
+    // [(480)(Torque)(RPM)]/[(Dia^2)*(ROP)]    +    [4*(WOB)]/[pi*(Dia^2)]  = MSE
+    // Centripital Energy    +    Axial Energy    =      MSE (ksi)
+
     val mse: String = String.valueOf((480 * tor * rpm) / (diaSquare * rop) + (4 * wob) / (diaSquare * scala.math.Pi))
-    val mseKey="MSE@"+record.getOrElse("nameLog", "")
-    record + ("MSE"->mseKey) + (mseKey -> mse)
+
+    val mseKey=mnemonicName+"@"+record.getOrElse("LogName", "")
+    record + ("CALC_MSE"->mseKey) + (mseKey -> mse)
   }
 
   def isValidRecord(record: Map[String, Object]): Boolean = {
@@ -93,7 +126,19 @@ object ComputeMSE {
     return true
   }
 
+
   def toMap(record: String): Map[String, String]= {
+    var result = JSON.parseRaw(record).getOrElse(null)
+    if (result == null) {
+      WARN(s"Record could not be parsed as a JSON object: ${record}")
+      Map()
+    } else {
+      var map = result.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
+      map
+    }
+  }
+
+ /* def toMapOld(record: String): Map[String, String]= {
     var map = Map[String, String]()
     var result = JSON.parseRaw(record).getOrElse(null)
     if (result == null) {
@@ -103,25 +148,40 @@ object ComputeMSE {
     var tmp = result.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
     var tmpIter = tmp.keySet.iterator
     var hashMap = new HashMap[String, String]
-    while (tmpIter.hasNext) {
-      val tmpKey = tmpIter.next()
-      val firstPart = tmpKey.split("@")(0)
-      firstPart match {
-        case "tempus.tsds" | "TOR" | "RPM" | "WOB" =>
-          hashMap.put(firstPart, tmp.getOrElse(tmpKey, null))
-        case "ROP" =>
-          val secondPart = tmpKey.split("@")(1)
-          val rop:String = tmp.getOrElse(tmpKey, null)
-          val dia = getDiameter(tmp.getOrElse("ss", null), "diameter."+secondPart)
-          if (rop.toDouble > 0 && dia.toDouble > 0) {
-            hashMap.put(firstPart, rop)
-            hashMap.put("diameter", dia)
-            hashMap.put("nameLog", secondPart)
-          }
-        case _ =>
+
+    //val secondPart = tmpKey//.split("@")(1)
+    var logName = tmp.getOrElse("LogName","")
+    var nameWell = tmp.getOrElse("nameWell","")
+    var diameter = tmp.getOrElse("diameter","")
+
+    var diameterDouble :Double = 0.0
+    if(!diameter.isEmpty){
+      try{
+        diameterDouble = diameter.toDouble
+      }catch{
+        case  exp : Exception => exp.printStackTrace()
       }
+
     }
-    getWellName(tmp, "nameWell", hashMap)
+    hashMap.put("nameWell", nameWell)
+    hashMap.put("nameLog", logName)
+    hashMap.put("diameter", diameter)
+    hashMap.put("tempus.tsds", "tempus.tsds")
+
+
+    if(tmp.getOrElse(torKey, null) != null)
+    hashMap.put(torKey, tmp.getOrElse(torKey, null))
+
+    if(tmp.getOrElse(rpmKey, null) != null)
+    hashMap.put(rpmKey, tmp.getOrElse(rpmKey, null))
+
+    if(tmp.getOrElse(wobKey, null) != null)
+    hashMap.put(wobKey, tmp.getOrElse(wobKey, null))
+
+    if(tmp.getOrElse(ropKey, null) != null)
+    hashMap.put(ropKey, tmp.getOrElse(ropKey, null))
+
+
     if (hashMap.size<8) { //We need at least 7 params: tempus.tsds,TOR,RPM,WOB,ROP,dia,nameWell
       DEBUG(s"Record does not have at least one of tempus.tsds, TOR, RPM, WOB, ROP, diameter, nameLog, or nameWell: ${record}")
       return map
@@ -132,30 +192,8 @@ object ComputeMSE {
       map = map + (key -> hashMap.getOrElse(key, null))
     }
     map
-  }
+  }*/
 
-  def getWellName(source: Map[String, String], name: String, target: HashMap[String, String]): Unit = {
-    val rec=source.getOrElse("cs", null)
-    if (rec==null) return
-    var key=name+"="
-    var dataStartIndex=rec.indexOf(key)+key.length
-    var dataEndIndex=rec.indexOf(", ", dataStartIndex)
-    if (dataEndIndex<0)
-      dataEndIndex=rec.indexOf("}", dataStartIndex)
-    DEBUG(s"${rec.substring(dataStartIndex, dataEndIndex)}")
-    target.put(name, rec.substring(dataStartIndex, dataEndIndex))
-  }
-
-  def getDiameter(rec: String, name: String): String = {
-    if (rec==null || rec.isEmpty) return "0"
-    var key=name+"="
-    var dataStartIndex=rec.indexOf(key)+key.length
-    var dataEndIndex=rec.indexOf(", ", dataStartIndex)
-    if (dataEndIndex<0)
-      dataEndIndex=rec.indexOf("}", dataStartIndex)
-    DEBUG(s"${rec.substring(dataStartIndex, dataEndIndex)}")
-    return rec.substring(dataStartIndex, dataEndIndex)
-  }
 
   def WARN(s: String): Unit={
     if (log.isEnabledFor(Level.WARN)) {
@@ -181,6 +219,56 @@ object ComputeMSE {
 
 
   def main(args: Array[String]) : Unit = {
-    ComputeMSE.streamComputedMSE(args(0), args(1).split(","), args(2), args(3), args(4), args(5))
-  }
+
+    var kafkaUrl = ""
+    var topicName = ""
+    var logLevel = ""
+    var tokenName = ""
+    var mqttUrl = ""
+
+    var mqttTopic = ""
+
+
+    try{
+      val prop = new Properties()
+      prop.load(new FileInputStream("kudu_witsml.properties"))
+
+      kafkaUrl = prop.getProperty(TempusKuduConstants.KAFKA_URL_PROP)
+      logLevel = prop.getProperty(TempusKuduConstants.LOG_LEVEL)
+      topicName = prop.getProperty(TempusKuduConstants.TOPIC_MSE_PROP)
+      tokenName = prop.getProperty(TempusKuduConstants.TEMPUS_MQTT_TOKEN)
+
+      mqttUrl = prop.getProperty(TempusKuduConstants.TEMPUS_MQTT_URL)
+      mqttTopic = prop.getProperty(TempusKuduConstants.TEMPUS_MQTT_TOPIC)
+
+      torKey = prop.getProperty(TempusKuduConstants.MSE_TOR_KEY)
+      wobKey = prop.getProperty(TempusKuduConstants.MSE_WOB_KEY)
+      rpmKey = prop.getProperty(TempusKuduConstants.MSE_RPM_KEY)
+      ropKey = prop.getProperty(TempusKuduConstants.MSE_ROP_KEY)
+      mnemonicName = prop.getProperty(TempusKuduConstants.MSE_MNEMONIC)
+
+
+      log.info(" kafkaUrl  --- >> "+kafkaUrl)
+      log.info(" topicName  --- >> "+topicName)
+      log.info(" mqttUrl --- >> "+mqttUrl)
+      log.info(" tokenName --- >> "+tokenName)
+      log.info(" mqttTopic --- >> "+mqttTopic)
+
+      log.info(" mnemonicName --- >> "+mnemonicName)
+
+
+      if(kafkaUrl == null  || topicName == null || mqttUrl == null|| tokenName == null || mqttTopic == null){
+        log.info("  <<<--- kudu_witsml.properties file should be presented at classpath location with following properties " +
+          "tempus.mqtt.url=tcp://<TempusServerIP>:1883\ntempus.mqtt.token=gatewaytoken\ntopic.witsml.mse=well-mse-data\nkafka.url=kafka:9092" +
+          "\ntempus.mqtt.topic=v1/gateway/depth/telemetry >> ")
+      }
+      else{
+        ComputeMSE.streamComputedMSE(kafkaUrl, Array(topicName),  mqttUrl, tokenName, mqttTopic, logLevel)
+      }
+
+
+    }catch{
+      case  exp : Exception => exp.printStackTrace()
+    }
+ }
 }

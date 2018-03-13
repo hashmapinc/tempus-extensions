@@ -1,0 +1,28 @@
+{
+  "name": "WITSML MSE Rule",
+  "state": "ACTIVE",
+  "weight": 0,
+  "pluginToken": "kafka-spark-streaming-sample",
+  "filters": [
+    {
+      "configuration": {
+        "messageTypes": [
+          "POST_TELEMETRY_DEPTH"
+        ]
+      },
+      "name": "MsgTypeFilter",
+      "clazz": "org.thingsboard.server.extensions.core.filter.MsgTypeFilter"
+    }
+  ],
+  "processor": null,
+  "action": {
+    "configuration": {
+      "sync": true,
+      "topic": "well-mse-data",
+      "template": "#if ($tags.size()>0)\n#set ($mseData = \"no\")\n{#foreach ($tag in $tags)\n#set ($index = $tag.key.indexOf(\"@\"))\n#set ($index1 = $tag.key.indexOf(\"@\")+1)\n#set ($keyValue = $tag.key.substring(0,$index))\n#if(!$tag.key.contains(\"Traj\") && ($keyValue == \"ROP\" ||$keyValue == \"TOR\" || $keyValue == \"RPM\" ||$keyValue == \"WOB\"))#set ($mseData=\"yes\")\"$keyValue\":\"$tag.valueAsString\",#end#if($velocityCount == $tags.size() &&$mseData==\"yes\")\"LogName\":\"$tag.key.substring($index1)\", \"tempus.tsds\": \"$tag.ds\", \"nameWell\": \"$cs.nameWell\", \"nameWellbore\": \"$cs.nameWellbore\",\"diameter\": \"$ss.diameter\"#end#end}#end"
+    },
+    "clazz": "org.thingsboard.server.extensions.kafka.action.KafkaPluginAction",
+    "name": "WellMSEData"
+  },
+  "additionalInfo": null
+}

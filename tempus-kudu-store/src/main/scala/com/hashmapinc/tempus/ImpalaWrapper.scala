@@ -21,6 +21,7 @@ object ImpalaWrapper {
   val TEMPUS_TSDS="tempus.tsds"
   val TEMPUS_NAMEWELL="tempus.nameWell"
   val TRAJECTORYINFO  = "TRAJECTORYINFO"
+  val OFFSETMGR  = "OFFSETMGR"
   val CS="cs"
   val SS="ss"
   val TRAJECTORYSQL = "UPSERT INTO trajectory (namewell,namewellbore,nametrajectory,nametrajectorystn,azivertsectvalue, " +
@@ -33,33 +34,17 @@ object ImpalaWrapper {
     DEPTHLOG -> "UPSERT INTO depth_log (nameWell, nameWellbore, nameLog, mnemonic, depthString, depth, value, value_str) values (?, ?, ?, ?, ?, ?, ?, ?)",
     TIMELOG  -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value, value_str) values (?, ?, ?, ?, ?, ?, ?)",
     MESSAGELOG -> "UPSERT INTO time_log (nameWell, nameWellbore, nameLog, mnemonic, ts, value, value_str) values (?, ?, ?, ?, ?, ?, ?)",
-    WELLINFO  -> "UPSERT INTO well (namewell, operator, state, county, country, timezone, numapi, statuswell, dtimspud,ekey,well_government_id,loadtime) values (?,?,?,?,?,?,?,?,?,?,?,?)",
+    WELLINFO  -> "UPSERT INTO well (namewell, operator, state, county, country, timezone, numapi, statuswell, dtimspud,ekey,well_government_id,surface_latitude,surface_latitude,loadtime) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
     WELLBOREINFO  -> "UPSERT INTO wellbore (namewell,namewellbore,statuswellbore,loadtime) values (?,?,?,?)",
     RIGINFO  -> "UPSERT INTO rig (namewell,namewellbore,namerig,ownerrig,dtimstartop,loadtime) values (?,?,?,?,?,?)",
-    TRAJECTORYINFO  -> TRAJECTORYSQL
+    TRAJECTORYINFO  -> TRAJECTORYSQL,
+    OFFSETMGR  -> "UPSERT INTO offsetmgr (topic_name,group_id,offsetid) values (?,?,?)"
   )
   var driverLoaded: Boolean = false
 
   val log = Logger.getLogger(ImpalaWrapper.getClass)
 
-  def getImpalaConnection(connectionURL: String, userId: String, password: String) : Connection = {
-    val JDBCDriver = "com.cloudera.impala.jdbc4.Driver"
 
-    if (!driverLoaded) {
-      Class.forName(JDBCDriver).newInstance()
-      driverLoaded = true;
-    }
-    val impalaConnection = DriverManager.getConnection(connectionURL, userId, password)
-    INFO("connection to db done")
-    impalaConnection
-  }
-
-  def closeConnection(con: Connection): Unit= {
-    if (con != null) {
-      con.close()
-    }
-    INFO("disconnected")
-  }
 
   def getUpsert(con: Connection, rec: Map[String, String]): PreparedStatement = {
     val hint = rec.getOrElse(TEMPUS_HINT, "NONIDRECORD").toUpperCase()
@@ -96,6 +81,21 @@ object ImpalaWrapper {
     }
     DEBUG("End upsertTimeLog")
   }
+
+  def upsertOffsetMgr(con: Connection, topicName:String, groupId : String , offsetId :String): Unit = {
+    DEBUG("Start upsertOffsetMgr")
+
+    val stmt =  con.prepareStatement(upsertSQLMap.getOrElse(OFFSETMGR, null))
+    stmt.setString(1, topicName)
+    stmt.setString(2, groupId)
+    stmt.setString(3, offsetId)
+    stmt.executeUpdate()
+    DEBUG("End upsertOffsetMgr")
+
+
+  }
+
+
 
   def upsertMessageLog(stmt: PreparedStatement, rec: Map[String, String]): Unit = {
     DEBUG("Start upsertMessageLog")
@@ -256,7 +256,9 @@ object ImpalaWrapper {
       stmt.setString(9, deviceAttr.getOrElse("dtimSpud", ""))
       stmt.setString(10, deviceAttr.getOrElse("ekey", ""))
       stmt.setString(11, deviceAttr.getOrElse("well_government_id", ""))
-      stmt.setString(12,getCurrentTime)
+      stmt.setString(12, deviceAttr.getOrElse("surface_latitude", ""))
+      stmt.setString(13, deviceAttr.getOrElse("surface_longitude", ""))
+      stmt.setString(14,getCurrentTime)
       try{
         stmt.executeUpdate()
         stmt.close()

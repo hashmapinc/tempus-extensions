@@ -28,10 +28,10 @@ object PutAttributes {
   val TEMPUS_HINT="tempus.hint"
   val TEMPUS_NAMEWELL="tempus.nameWell"
 
-  var driverLoaded: Boolean = false
+
 
   val upsertSQLMap = Map(
-    WELLINFO  -> "UPSERT INTO well (namewell, operator, state, county, country, timezone, numapi, statuswell, dtimspud,ekey,well_government_id,loadtime) values (?,?,?,?,?,?,?,?,?,?,?,?)",
+    WELLINFO  -> "UPSERT INTO well (namewell, operator, state, county, country, timezone, numapi, statuswell, dtimspud,ekey,well_government_id,surface_latitude,surface_longitude,loadtime) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
     WELLBOREINFO  -> "UPSERT INTO wellbore (namewell,namewellbore,statuswellbore,loadtime) values (?,?,?,?)",
     RIGINFO  -> "UPSERT INTO rig (namewell,namewellbore,namerig,ownerrig,dtimstartop,loadtime) values (?,?,?,?,?,?)"
   )
@@ -78,7 +78,7 @@ object PutAttributes {
     values.foreachRDD(rdd =>{
       if (!rdd.isEmpty()) {
         rdd.foreachPartition { p =>
-          val con =  getImpalaConnection(kuduUrl, userId, password)
+          val con =  TempusKuduConstants.getImpalaConnection(kuduUrl, userId, password)
 
           p.foreach(r => {
             upsertAttributeInfo(con, r)
@@ -140,7 +140,9 @@ object PutAttributes {
         stmt.setString(9, deviceAttr.getOrElse("dtimSpud", ""))
         stmt.setString(10, deviceAttr.getOrElse("ekey", ""))
         stmt.setString(11, deviceAttr.getOrElse("well_government_id", ""))
-        stmt.setString(12,TempusKuduConstants.getCurrentTime)
+        stmt.setString(12, deviceAttr.getOrElse("surface_latitude", ""))
+        stmt.setString(13, deviceAttr.getOrElse("surface_longitude", ""))
+        stmt.setString(14,TempusKuduConstants.getCurrentTime)
         try{
           stmt.executeUpdate()
           stmt.close()
@@ -275,17 +277,7 @@ object PutAttributes {
     log.error(s)
   }
 
-  def getImpalaConnection(connectionURL: String, userId: String, password: String) : Connection = {
-    val JDBCDriver = "com.cloudera.impala.jdbc4.Driver"
 
-    if (!driverLoaded) {
-      Class.forName(JDBCDriver).newInstance()
-      driverLoaded = true;
-    }
-    val impalaConnection = DriverManager.getConnection(connectionURL, userId, password)
-    INFO("connection to db done")
-    impalaConnection
-  }
 
   def closeConnection(con: Connection): Unit= {
     if (con != null) {
