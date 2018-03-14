@@ -8,13 +8,11 @@ import org.apache.log4j.{Level, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.apache.spark.streaming.kafka010.ConsumerStrategies._
 import org.apache.spark.streaming.kafka010.{ConsumerStrategies, HasOffsetRanges, KafkaUtils}
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.apache.kudu.spark.kudu._
-
 import scala.util.parsing.json.{JSON, JSONObject}
-import org.apache.kafka.common.TopicPartition
+
 
 
 
@@ -149,11 +147,9 @@ object PutDepthLog {
     var kuduTableName = "impala::kudu_tempus.depth_log"
     var impalaKuduUrl = ""
 
-
     try{
       val prop = new Properties()
       prop.load(new FileInputStream("kudu_witsml.properties"))
-
       kafkaUrl = prop.getProperty(TempusKuduConstants.KAFKA_URL_PROP)
       kuduConnectionUrl = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_URL_PROP)
       kuduConnectionUser = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_USER_PROP)
