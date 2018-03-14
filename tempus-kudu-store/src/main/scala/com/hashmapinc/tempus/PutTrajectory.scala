@@ -1,18 +1,9 @@
 package com.hashmapinc.tempus
-
 import java.io.FileInputStream
 import java.util.Properties
-
-import com.hashmapinc.tempus.util.TempusKuduConstants
-import org.apache.log4j.{Level, Logger}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
-import org.apache.spark.streaming.kafka010.KafkaUtils
-import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
-
-import scala.util.parsing.json.{JSON, JSONObject}
+import com.hashmapinc.tempus.util.{KafkaService, SparkService, TempusKuduConstants, TempusUtils}
+import org.apache.log4j.{Logger}
+import org.apache.spark.streaming.kafka010.{HasOffsetRanges}
 import org.apache.kudu.spark.kudu._
 
 /**
@@ -23,57 +14,43 @@ object PutTrajectory {
 
 
   val log = Logger.getLogger(PutDataInKudu.getClass)
-  val specialKeySet = Map("tempus.tsds"->"tempus.tsds", "tempus.hint"->"tempus.hint", "nameWell"->"nameWell", "nameWellbore"->"nameWellbore", "LogName"->"LogName")
 
-  def streamDataFromKafkaToKudu(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String, level: String="WARN"): Unit = {
-    val kafkaParams = Map[String, Object](
-      "bootstrap.servers" -> kafkaUrl , //kafka,
-      "key.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer", //classOf[StringDeserializer],
-      "value.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer", //classOf[StringDeserializer],
-      "group.id" -> topics(0),
-      "auto.offset.reset" -> "latest",
-      "enable.auto.commit" -> (false: java.lang.Boolean)
-    )
-    val sparkConf = new SparkConf().setAppName("PutDataInKudu")
-    val sc = new SparkContext(sparkConf)
-    val sqlContext = new SQLContext(sc)
-    import sqlContext.implicits._
+  val groupId = "Trajectory"
 
+  def processTrajectory(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String,impalaKuduUrl:String,kuduUser:String,kuduPassword:String, level: String="WARN"): Unit = {
+    val connection =  TempusUtils.getImpalaConnection(impalaKuduUrl, kuduUser, kuduPassword)
 
+    val spark = SparkService.getSparkSession("PutMessage")
+    val streamContext = SparkService.getStreamContext(spark,10)
+    streamContext.sparkContext.setLogLevel(level)
 
+    import spark.implicits._
 
-    val ssc = new StreamingContext(sc, Seconds(2))
-
-    val stream = KafkaUtils
-      .createDirectStream[String, String](ssc, PreferConsistent, Subscribe[String, String](topics, kafkaParams))
-
-    val values  = stream.map(_.value())
+    val stream = KafkaService.readKafka(kafkaUrl, topics, impalaKuduUrl,kuduUser,kuduPassword, groupId, streamContext)
+    stream
+      .transform {
+        rdd =>
+          val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+          offsetRanges.foreach(offset => {
+            //This method will save the offset to kudu_tempus.offsetmgr table
+            TempusUtils.saveOffsets(connection,topics(0),groupId,offset.untilOffset)
+          })
+          rdd
+      }.map(_.value())
       .filter(_.length>0)                     //Ignore empty lines
-      .map(toMap(_)).filter(_.size>0)
-      .map(toTrajectory(_))            //Ignore empty records - id for growing objects and nameWell for attributes
+      .map(TempusUtils.toMap(_))
+      .filter(_.size>0)
+      .map(toTrajectory(_))
+      .foreachRDD(rdd =>{
+        TempusUtils.INFO("before Trajectory upserting")
+        rdd.toDF().write.options(Map("kudu.table" -> kuduTableName,"kudu.master" -> kuduUrl)).mode("append").kudu
+        TempusUtils.INFO("after Trajectory upserting")
+      })
 
-
-    values.foreachRDD(rdd =>{
-      INFO("before upserting trajectory")
-      rdd.toDF().write.options(Map("kudu.table" -> kuduTableName,"kudu.master" -> kuduUrl)).mode("append").kudu
-      rdd.toDF().show(false)
-      INFO("after upserting trajectory")
-    })
-
-    ssc.start()
-    ssc.awaitTermination()
+    streamContext.start()
+    streamContext.awaitTermination()
   }
 
-  def toMap(record: String): Map[String, String]= {
-    var result = JSON.parseRaw(record).getOrElse(null)
-    if (result == null) {
-      WARN(s"Record could not be parsed as a JSON object: ${record}")
-      Map()
-    } else {
-      var map = result.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
-      map
-    }
-  }
 
   def toTrajectory(map: Map[String, String]): Trajectory= {
 
@@ -92,9 +69,6 @@ object PutTrajectory {
     var dispEwUom = map.getOrElse("dispEwUom","")
     var vertSectUom = map.getOrElse("vertSectUom","")
     var dlsUom = map.getOrElse("dlsUom","")
-
-
-
 
     var aziVertSectValue  = map.getOrElse("aziVertSectValue","")
     var aziVertSectValueDouble = 0.0
@@ -181,19 +155,13 @@ object PutTrajectory {
       dispEwVertSecOrigValueDouble,dispEwVertSecOrigUom,dispEwVertSecOrigValueDouble,dispEwVertSecOrigUom,
       aziRef,cmnDataDtimCreation,cmnDataDtimLstChange,trajectoryStnType,mdValueDouble,mdUom,tvdValueDouble,tvdUom,
       inclValueDouble,inclUom,aziValueDouble,aziUom,dispNsValueDouble,dispNsUom,dispEwValueDouble,dispEwUom,
-      vertSectValueDouble,vertSectUom,dlsValueDouble,dlsUom,dtimStn,TempusKuduConstants.getCurrentTime)
+      vertSectValueDouble,vertSectUom,dlsValueDouble,dlsUom,dtimStn,TempusUtils.getCurrentTime)
 
 
 
   }
 
 
-
-  def isSpecialKey(key: String): Boolean= {
-    if (specialKeySet.getOrElse(key, null)!=null)
-      return true
-    return false
-  }
 
 
   def main(args: Array[String]): Unit={
@@ -205,7 +173,7 @@ object PutTrajectory {
     var topicName = ""
     var logLevel = ""
     var kuduTableName = "impala::kudu_tempus.depth_log"
-
+    var impalaKuduUrl = ""
 
     try{
       val prop = new Properties()
@@ -217,7 +185,7 @@ object PutTrajectory {
       kuduConnectionPassword = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_PASSWORD_PROP)
       logLevel = prop.getProperty(TempusKuduConstants.LOG_LEVEL)
       topicName = prop.getProperty(TempusKuduConstants.TOPIC_TRAJECTORY_PROP)
-
+      impalaKuduUrl = prop.getProperty(TempusKuduConstants.KUDU_IMPALA_CONNECTION_URL_PROP)
       kuduTableName = "impala::"+prop.getProperty(TempusKuduConstants.KUDU_TRAJECTORY_TABLE)
 
 
@@ -227,13 +195,13 @@ object PutTrajectory {
       log.info(" kuduConnectionUser --- >> "+kuduConnectionUser)
       log.info(" kuduConnectionPassword --- >> "+kuduConnectionPassword)
 
-      if(kafkaUrl.isEmpty || topicName.isEmpty || kuduConnectionUrl.isEmpty || kuduConnectionUser.isEmpty || kuduConnectionPassword.isEmpty){
+      if(kafkaUrl == null || topicName == null || kuduConnectionUrl== null || kuduConnectionUser== null || kuduConnectionPassword== null){
         log.info("  <<<--- kudu_witsml.properties file should be presented at classpath location with following properties " +
           "kudu.db.url=<HOST_IP>:<PORT>/<DATABASE_SCHEMA>\nkudu.db.user=demo\nkudu.db.password=demo\nkafka.url=kafka:9092\n" +
           "topic.witsml.attribute=well-attribute-data --- >> ")
       }
       else{
-        PutTrajectory.streamDataFromKafkaToKudu(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,logLevel)
+        PutTrajectory.processTrajectory(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,impalaKuduUrl,kuduConnectionUser,kuduConnectionPassword,logLevel)
       }
 
 
@@ -243,26 +211,5 @@ object PutTrajectory {
 
   }
 
-  def WARN(s: String): Unit={
-    if (log.isEnabledFor(Level.WARN)) {
-      log.warn(s)
-    }
-  }
-
-  def INFO(s: String): Unit={
-    if (log.isInfoEnabled()) {
-      log.info(s)
-    }
-  }
-
-  def DEBUG(s: String): Unit={
-    if (log.isDebugEnabled()) {
-      log.debug(s)
-    }
-  }
-
-  def ERROR(s: String): Unit={
-    log.error(s)
-  }
 
 }

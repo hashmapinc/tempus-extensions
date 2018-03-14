@@ -21,7 +21,7 @@ import scala.tools.scalap.scalax.util.StringUtil
 
 
 object ComputeMSE {
-  val logLevelMap = Map("INFO"->Level.INFO, "WARN"->Level.WARN, "DEBUG"->Level.DEBUG)
+  //val logLevelMap = Map("INFO"->Level.INFO, "WARN"->Level.WARN, "DEBUG"->Level.DEBUG)
   val log = Logger.getLogger(ComputeMSE.getClass)
 
   var torKey :String = "";
@@ -32,8 +32,8 @@ object ComputeMSE {
 
 
   def streamComputedMSE(kafka: String, topics: Array[String], mqttUrl: String, gatewayToken: String, mqttTopic:String, level: String="WARN"): Unit = {
-    log.setLevel(logLevelMap(level))
-    TempusPublisher.setLogLevel(logLevelMap(level))
+   // log.setLevel(TempusKuduConstants.logLevelMap(level))
+  //  TempusPublisher.setLogLevel(logLevelMap(level))
     val kafkaParams = Map[String, Object](
       "bootstrap.servers" -> kafka,
       "key.deserializer" -> classOf[StringDeserializer],

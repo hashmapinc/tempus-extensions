@@ -8,15 +8,16 @@ import org.eclipse.paho.client.mqttv3.{MqttConnectOptions,MqttAsyncClient,IMqttA
 object TempusPublisher {
   val log = Logger.getLogger(TempusPublisher.getClass)
 
-  val GATEWAY_ACCESS_TOKEN: String = "GATEWAY_ACCESS_TOKEN"
+ // val GATEWAY_ACCESS_TOKEN: String = "GATEWAY_ACCESS_TOKEN"
   val MAX_INFLIGHT_SIZE = 1000
 
   def connect(mqttUrl: String, gatewayToken: String):MqttAsyncClient ={
     INFO(s"trying to connect to ${mqttUrl}")
-    var client = new MqttAsyncClient(mqttUrl, MqttAsyncClient.generateClientId())
+    var client = new MqttAsyncClient(mqttUrl, MqttAsyncClient.generateClientId(),null)
     var options = new MqttConnectOptions()
     options.setMaxInflight(MAX_INFLIGHT_SIZE)
     options.setUserName(gatewayToken)
+
     client.connect(options, null, new IMqttActionListener{
       def onFailure(x1: IMqttToken,x2: Throwable): Unit ={ INFO(s" onFailure  ${mqttUrl}")}
       def onSuccess(x1: IMqttToken): Unit = { INFO(s" onSuccess  ${mqttUrl}")}

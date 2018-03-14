@@ -63,85 +63,11 @@ object TempusKuduConstants {
     OFFSETMGR  -> "UPSERT INTO offsetmgr (topic_name,group_id,offsetid) values (?,?,?)"
   )
 
-
-
-  /**
-    * Retrieve Current Time
-    * @return
-    */
-  def getCurrentTime : String = {
-    val cal = java.util.Calendar.getInstance()
-    val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(cal.getTime())
-    var currentDate : String = sdf.toString
-    currentDate
-  }
-
-  def getFormattedTime (longtime:String) : String = {
-    var formattedTime = longtime
-    try{
-      val calendar = Calendar.getInstance()
-      calendar.setTimeInMillis(longtime.toLong)
-      formattedTime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX").format(calendar.getTime())
-    }catch{
-      case exp: Exception =>  exp.printStackTrace()
-    }
-
-    formattedTime
-  }
-
-  def saveOffsets(con: Connection,topicName:String,groupId:String,offsetId:Long) ={
-
-    try{
-    val stmt =  con.prepareStatement(upsertSQLMap.getOrElse(OFFSETMGR, null))
-    stmt.setString(1, topicName)
-    stmt.setString(2, groupId)
-    stmt.setString(3, String.valueOf(offsetId))
-    stmt.executeUpdate()
-    }catch{
-      case exp: Exception =>  exp.printStackTrace()
-    }
-
-  }
-
-  def getLastCommittedOffsets(con: Connection,topicName:String,groupId:String) :Map[TopicPartition,Long] ={
-    var offsetId : String = null;
-    var getOffset = "SELECT offsetid FROM offsetmgr WHERE topic_name = '"+topicName +"' and group_id = '"+groupId +"';"
-    try{
-      val stmt =  con.prepareStatement(getOffset)
-
-      if(stmt != null){
-        val rs = stmt.executeQuery()
-        while(rs.next()){
-          offsetId = rs.getString(1)
-        }
-      }
-
-    }catch{
-      case exp: Exception =>  exp.printStackTrace()
-    }
-
-    val fromOffsets = collection.mutable.Map[TopicPartition,Long]()
-
-    if(offsetId!= null){
-      fromOffsets += (new TopicPartition(topicName,0) -> offsetId.toLong)
-    }
-
-    fromOffsets.toMap
-
-  }
+  val specialKeySet = Map("tempus.tsds"->"tempus.tsds", "tempus.hint"->"tempus.hint", "nameWell"->"nameWell", "nameWellbore"->"nameWellbore", "LogName"->"LogName")
 
 
 
-  def getImpalaConnection(connectionURL: String, userId: String, password: String) : Connection = {
-    val JDBCDriver = "com.cloudera.impala.jdbc4.Driver"
 
-    if (!driverLoaded) {
-      Class.forName(JDBCDriver).newInstance()
-      driverLoaded = true;
-    }
-    val impalaConnection = DriverManager.getConnection(connectionURL, userId, password)
-    impalaConnection
-  }
 
 
 }

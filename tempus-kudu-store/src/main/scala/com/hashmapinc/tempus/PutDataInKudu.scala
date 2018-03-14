@@ -3,7 +3,7 @@ package com.hashmapinc.tempus
 import java.io.FileInputStream
 import java.util.Properties
 
-import com.hashmapinc.tempus.util.TempusKuduConstants
+import com.hashmapinc.tempus.util.{TempusKuduConstants, TempusUtils}
 import org.apache.commons.lang3.StringUtils
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -221,7 +221,7 @@ object PutDataInKudu {
       dispEwVertSecOrigValueDouble,dispEwVertSecOrigUom,dispEwVertSecOrigValueDouble,dispEwVertSecOrigUom,
       aziRef,cmnDataDtimCreation,cmnDataDtimLstChange,trajectoryStnType,mdValueDouble,mdUom,tvdValueDouble,tvdUom,
       inclValueDouble,inclUom,aziValueDouble,aziUom,dispNsValueDouble,dispNsUom,dispEwValueDouble,dispEwUom,
-      vertSectValueDouble,vertSectUom,dlsValueDouble,dlsUom,dtimStn,TempusKuduConstants.getCurrentTime)
+      vertSectValueDouble,vertSectUom,dlsValueDouble,dlsUom,dtimStn,TempusUtils.getCurrentTime)
 
 
 

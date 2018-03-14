@@ -3,18 +3,10 @@ package com.hashmapinc.tempus
 import java.io.FileInputStream
 import java.util.Properties
 
-import com.hashmapinc.tempus.util.TempusKuduConstants
+import com.hashmapinc.tempus.util.{KafkaService, SparkService, TempusKuduConstants, TempusUtils}
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.apache.spark.streaming.kafka010.{ConsumerStrategies, HasOffsetRanges, KafkaUtils}
-import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.apache.spark.streaming.kafka010.HasOffsetRanges
 import org.apache.kudu.spark.kudu._
-import scala.util.parsing.json.{JSON, JSONObject}
-
-
-
 
 
 
@@ -25,77 +17,43 @@ import scala.util.parsing.json.{JSON, JSONObject}
 object PutDepthLog {
 
   val log = Logger.getLogger(PutDataInKudu.getClass)
-  val specialKeySet = Map("tempus.tsds"->"tempus.tsds", "tempus.hint"->"tempus.hint", "nameWell"->"nameWell", "nameWellbore"->"nameWellbore", "LogName"->"LogName")
-
   val groupId = "DEPTH"
-  def streamDataFromKafkaToKudu(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String,impalaKuduUrl:String,kuduUser:String,kuduPassword:String, level: String="WARN"): Unit = {
-    val kafkaParams = Map[String, Object](
-      "bootstrap.servers" -> kafkaUrl , //kafka,
-      "key.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer", //classOf[StringDeserializer],
-      "value.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer", //classOf[StringDeserializer],
-      "group.id" -> groupId,
-      "auto.offset.reset" -> "latest",
-      "enable.auto.commit" -> (false: java.lang.Boolean)
-    )
-    val sparkConf = new SparkConf().setAppName("PutDataInKudu")
-    val sc = new SparkContext(sparkConf)
-    val sqlContext = new SQLContext(sc)
-    import sqlContext.implicits._
 
-    val ssc = new StreamingContext(sc, Seconds(10))
-    val con =  TempusKuduConstants.getImpalaConnection(impalaKuduUrl, kuduUser, kuduPassword)
-    val fromOffsets= TempusKuduConstants.getLastCommittedOffsets(con,topics(0),groupId)
-    val stream = KafkaUtils.createDirectStream[String, String](ssc , PreferConsistent, ConsumerStrategies.Subscribe[String, String](topics, kafkaParams,fromOffsets))
+  def processDepthLog(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String,impalaKuduUrl:String,kuduUser:String,kuduPassword:String, level: String="WARN"): Unit = {
+    val connection =  TempusUtils.getImpalaConnection(impalaKuduUrl, kuduUser, kuduPassword)
 
-  /*  val values  = stream.map(_.value())
-      .filter(_.length>0)                     //Ignore empty lines
-      .map(toMap(_)).filter(_.size>0)
-      .flatMap(toDepthLog(_))            //Ignore empty records - id for growing objects and nameWell for attributes
+    val spark = SparkService.getSparkSession("PutDepthLog")
+    val streamContext = SparkService.getStreamContext(spark,10)
+    streamContext.sparkContext.setLogLevel(level)
 
-*/
+    import spark.implicits._
+    val stream = KafkaService.readKafka(kafkaUrl, topics, impalaKuduUrl,kuduUser,kuduPassword, groupId, streamContext)
+
     stream
       .transform {
         rdd =>
-         val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+          val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
           offsetRanges.foreach(offset => {
-            println(" ============================= "+offset.topic,offset.partition, offset.fromOffset, offset.untilOffset)
-            TempusKuduConstants.saveOffsets(con,topics(0),groupId,offset.untilOffset)
+            //This method will save the offset to kudu_tempus.offsetmgr table
+            TempusUtils.saveOffsets(connection,topics(0),groupId,offset.untilOffset)
           })
-       rdd
+          rdd
       }.map(_.value())
       .filter(_.length>0)                     //Ignore empty lines
-      .map(toMap(_)).filter(_.size>0)
-      .flatMap(toDepthLog(_)).foreachRDD(rdd =>{
-      INFO("before upserting")
-
-     // val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
-
+      .map(TempusUtils.toMap(_)).filter(_.size>0)
+      .flatMap(toKuduDepthLog(_)).foreachRDD(rdd =>{
+      TempusUtils.INFO("before Depthlog upserting")
 
       rdd.toDF().write.options(Map("kudu.table" -> kuduTableName,"kudu.master" -> kuduUrl)).mode("append").kudu
-
-
-
-      //rdd.toDF().show(false)
-      INFO("after upserting")
+      TempusUtils.INFO("after Depthlog upserting")
     })
 
-    ssc.start()
-    ssc.awaitTermination()
+    streamContext.start()
+    streamContext.awaitTermination()
   }
 
-  def toMap(record: String): Map[String, String]= {
-    var result = JSON.parseRaw(record).getOrElse(null)
-    if (result == null) {
-      WARN(s"Record could not be parsed as a JSON object: ${record}")
-      Map()
-    } else {
-      var map = result.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
-      map
-    }
-  }
-
-  def toDepthLog(map: Map[String, String]): Array[DepthLog]= {
-    val dla: Array[DepthLog] = new Array[DepthLog](map.size-specialKeySet.size)
+  def toKuduDepthLog(map: Map[String, String]): Array[DepthLog]= {
+    val dla: Array[DepthLog] = new Array[DepthLog](map.size-TempusKuduConstants.specialKeySet.size)
     var ds = map("tempus.tsds")
     var logName = map("LogName")
     var nameWell = map("nameWell")
@@ -108,7 +66,7 @@ object PutDepthLog {
     var i=0
     while (keyIter.hasNext) {
       val key = keyIter.next()
-      if (!isSpecialKey(key)) {
+      if (!TempusUtils.isSpecialKey(key)) {
 
         val mnemonic = key
         val valuestr = map.getOrElse(key, null)
@@ -126,18 +84,7 @@ object PutDepthLog {
     dla
   }
 
-
-
-
-  def isSpecialKey(key: String): Boolean= {
-    if (specialKeySet.getOrElse(key, null)!=null)
-      return true
-    return false
-  }
-
-
   def main(args: Array[String]): Unit={
-
     var kafkaUrl = ""
     var kuduConnectionUrl = ""
     var kuduConnectionUser = ""
@@ -156,11 +103,8 @@ object PutDepthLog {
       kuduConnectionPassword = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_PASSWORD_PROP)
       logLevel = prop.getProperty(TempusKuduConstants.LOG_LEVEL)
       topicName = prop.getProperty(TempusKuduConstants.TOPIC_DEPTHLOG_PROP)
-
       impalaKuduUrl = prop.getProperty(TempusKuduConstants.KUDU_IMPALA_CONNECTION_URL_PROP)
-
       kuduTableName = "impala::"+prop.getProperty(TempusKuduConstants.KUDU_DEPTHLOG_TABLE)
-
 
       log.info(" kafkaUrl  --- >> "+kafkaUrl)
       log.info(" topicName  --- >> "+topicName)
@@ -168,42 +112,18 @@ object PutDepthLog {
       log.info(" kuduConnectionUser --- >> "+kuduConnectionUser)
       log.info(" kuduConnectionPassword --- >> "+kuduConnectionPassword)
 
-      if(kafkaUrl.isEmpty || topicName.isEmpty || kuduConnectionUrl.isEmpty || kuduConnectionUser.isEmpty || kuduConnectionPassword.isEmpty){
+      if(kafkaUrl == null || topicName == null || kuduConnectionUrl== null || kuduConnectionUser== null || kuduConnectionPassword== null){
         log.info("  <<<--- kudu_witsml.properties file should be presented at classpath location with following properties " +
           "kudu.db.url=<HOST_IP>:<PORT>/<DATABASE_SCHEMA>\nkudu.db.user=demo\nkudu.db.password=demo\nkafka.url=kafka:9092\n" +
           "topic.witsml.attribute=well-attribute-data --- >> ")
       }
       else{
-        PutDepthLog.streamDataFromKafkaToKudu(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,impalaKuduUrl,kuduConnectionUser,kuduConnectionPassword,logLevel)
+        PutDepthLog.processDepthLog(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,impalaKuduUrl,kuduConnectionUser,kuduConnectionPassword,logLevel)
       }
-
-
     }catch{
       case  exp : Exception => exp.printStackTrace()
     }
 
-  }
-
-  def WARN(s: String): Unit={
-    if (log.isEnabledFor(Level.WARN)) {
-      log.warn(s)
-    }
-  }
-
-  def INFO(s: String): Unit={
-    if (log.isInfoEnabled()) {
-      log.info(s)
-    }
-  }
-
-  def DEBUG(s: String): Unit={
-    if (log.isDebugEnabled()) {
-      log.debug(s)
-    }
-  }
-
-  def ERROR(s: String): Unit={
-    log.error(s)
   }
 
 }

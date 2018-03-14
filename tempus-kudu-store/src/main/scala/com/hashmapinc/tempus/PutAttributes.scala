@@ -3,7 +3,7 @@ package com.hashmapinc.tempus
 import java.io.FileInputStream
 import java.util.Properties
 
-import com.hashmapinc.tempus.util.TempusKuduConstants
+import com.hashmapinc.tempus.util.{KafkaService, SparkService, TempusKuduConstants, TempusUtils}
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
@@ -28,6 +28,7 @@ object PutAttributes {
   val TEMPUS_HINT="tempus.hint"
   val TEMPUS_NAMEWELL="tempus.nameWell"
 
+  val groupId = "Attributes"
 
 
   val upsertSQLMap = Map(
@@ -37,7 +38,50 @@ object PutAttributes {
   )
   val log = Logger.getLogger(PutAttributes.getClass)
 
-  def streamDataFromKafkaToKudu(kafka: String, topics: Array[String], kuduUrl: String, userId: String, password: String, level: String="ERROR"): Unit = {
+
+  def processAttributes(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduUser:String,kuduPassword:String, level: String="WARN"): Unit = {
+    val connection =  TempusUtils.getImpalaConnection(kuduUrl, kuduUser, kuduPassword)
+
+    val spark = SparkService.getSparkSession("PutMessage")
+    val streamContext = SparkService.getStreamContext(spark,10)
+    streamContext.sparkContext.setLogLevel(level)
+
+    import spark.implicits._
+    val stream = KafkaService.readKafka(kafkaUrl, topics, kuduUrl,kuduUser,kuduPassword, groupId, streamContext)
+
+    stream
+      .transform {
+        rdd =>
+          val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+          offsetRanges.foreach(offset => {
+            //This method will save the offset to kudu_tempus.offsetmgr table
+            TempusUtils.saveOffsets(connection,topics(0),groupId,offset.untilOffset)
+          })
+          rdd
+      }.map(_.value())
+      .filter(_.length>0)                     //Ignore empty lines
+      .map(TempusUtils.toMap(_))
+      .filter(_.size>0)
+      .foreachRDD(rdd =>{
+        if (!rdd.isEmpty()) {
+          rdd.foreachPartition { p =>
+            val con =  TempusUtils.getImpalaConnection(kuduUrl, kuduUser, kuduPassword)
+
+            p.foreach(r => {
+              upsertAttributeInfo(con, r)
+
+            })
+
+            closeConnection(con)
+          }
+        }
+      })
+
+    streamContext.start()
+    streamContext.awaitTermination()
+  }
+
+  /*def streamDataFromKafkaToKudu(kafka: String, topics: Array[String], kuduUrl: String, userId: String, password: String, level: String="ERROR"): Unit = {
     val kafkaParams = Map[String, Object](
       "bootstrap.servers" -> kafka,
       "key.deserializer" -> classOf[StringDeserializer],
@@ -70,15 +114,14 @@ object PutAttributes {
 
     val values  = stream.map(_.value())
       .filter(_.length>0)                     //Ignore empty lines
-      .map(toMap(_))
+      .map(TempusUtils.toMap(_))
       .filter(isNonEmptyRecord(_))
-
 
 
     values.foreachRDD(rdd =>{
       if (!rdd.isEmpty()) {
         rdd.foreachPartition { p =>
-          val con =  TempusKuduConstants.getImpalaConnection(kuduUrl, userId, password)
+          val con =  TempusUtils.getImpalaConnection(kuduUrl, userId, password)
 
           p.foreach(r => {
             upsertAttributeInfo(con, r)
@@ -88,11 +131,11 @@ object PutAttributes {
            closeConnection(con)
         }
       }
-    })
+    })*/
 
 
     def upsertAttributeInfo(con: Connection, rec: Map[String, String]) = {
-      DEBUG("Start upsertAttributeInfo")
+      TempusUtils.DEBUG("Start upsertAttributeInfo")
       val wellName = rec.getOrElse("nameWell", "")
       val wellboreName = rec.getOrElse("nameWellbore", "")
       val rigName = rec.getOrElse("nameRig", "")
@@ -124,7 +167,7 @@ object PutAttributes {
         upsertRigInfo(stmt, rec)
       }
 
-      DEBUG("End upsertAttributeInfo")
+      TempusUtils.DEBUG("End upsertAttributeInfo")
     }
 
     def upsertWellInfo(stmt: PreparedStatement, deviceAttr: Map[String, String]): Unit = {
@@ -142,12 +185,12 @@ object PutAttributes {
         stmt.setString(11, deviceAttr.getOrElse("well_government_id", ""))
         stmt.setString(12, deviceAttr.getOrElse("surface_latitude", ""))
         stmt.setString(13, deviceAttr.getOrElse("surface_longitude", ""))
-        stmt.setString(14,TempusKuduConstants.getCurrentTime)
+        stmt.setString(14,TempusUtils.getCurrentTime)
         try{
           stmt.executeUpdate()
           stmt.close()
         }catch{
-          case exp: Exception => ERROR(" Error while populating Well data => "+exp.printStackTrace())
+          case exp: Exception => TempusUtils.ERROR(" Error while populating Well data => "+exp.printStackTrace())
         }
       }
     }
@@ -156,13 +199,13 @@ object PutAttributes {
         stmt.setString(1, wellboreInfo.getOrElse("nameWell", ""))
         stmt.setString(2, wellboreInfo.getOrElse("nameWellbore", ""))
         stmt.setString(3, wellboreInfo.getOrElse("statusWellbore", ""))
-        stmt.setString(4,TempusKuduConstants.getCurrentTime)
+        stmt.setString(4,TempusUtils.getCurrentTime)
 
         try{
           stmt.executeUpdate()
           stmt.close()
         }catch{
-          case exp: Exception => ERROR(" Error while populating Wellbore data => "+exp.printStackTrace())
+          case exp: Exception => TempusUtils.ERROR(" Error while populating Wellbore data => "+exp.printStackTrace())
         }
       }
 
@@ -175,44 +218,32 @@ object PutAttributes {
         stmt.setString(3, rigInfo.getOrElse("nameRig", ""))
         stmt.setString(4, rigInfo.getOrElse("ownerRig", ""))
         stmt.setString(5, rigInfo.getOrElse("dtimStartOp", ""))
-        stmt.setString(6,TempusKuduConstants.getCurrentTime)
+        stmt.setString(6,TempusUtils.getCurrentTime)
 
         try{
           stmt.executeUpdate()
           stmt.close()
         }catch{
-          case exp: Exception => ERROR(" Error while populating Rig data => "+exp.printStackTrace())
+          case exp: Exception => TempusUtils.ERROR(" Error while populating Rig data => "+exp.printStackTrace())
         }
       }
     }
-    ssc.start()
-    ssc.awaitTermination()
-  }
+
+
 
 
   def isNonEmptyRecord(record: Map[String, String]): Boolean = {
     //var result = record.getOrElse(TEMPUS_HINT, null);
     var result=record.getOrElse(TEMPUS_NAMEWELL, null);
     if (result==null) {
-      DEBUG(s"Returning false => record with no special keys: ${record.toString()}")
+      TempusUtils.DEBUG(s"Returning false => record with no special keys: ${record.toString()}")
       return false
 
     }
-    DEBUG(s"Returning true => record with special keys: ${record.toString()}")
+    TempusUtils.DEBUG(s"Returning true => record with special keys: ${record.toString()}")
     true
   }
 
-  def toMap(record: String): Map[String, String]= {
-    var result = JSON.parseRaw(record).getOrElse(null)
-    if (result == null) {
-      WARN(s"Record could not be parsed as a JSON object: ${record}")
-      Map()
-    } else {
-      var map = result.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
-      // WARN(s"  map   : ${map}")
-      map
-    }
-  }
 
   def main(args: Array[String]) : Unit = {
     var kafkaUrl = ""
@@ -220,6 +251,8 @@ object PutAttributes {
     var kuduConnectionUser = ""
     var kuduConnectionPassword = ""
     var attributeTopicName = ""
+    var logLevel = ""
+
 
     try{
       val prop = new Properties()
@@ -230,6 +263,7 @@ object PutAttributes {
       kuduConnectionUser = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_USER_PROP)
       kuduConnectionPassword = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_PASSWORD_PROP)
       attributeTopicName = prop.getProperty(TempusKuduConstants.TOPIC_ATTRIBUTE_PROP)
+      logLevel = prop.getProperty(TempusKuduConstants.LOG_LEVEL)
 
       log.info(" kafkaUrl  --- >> "+kafkaUrl)
       log.info(" attributeTopicName  --- >> "+attributeTopicName)
@@ -243,7 +277,7 @@ object PutAttributes {
           "topic.witsml.attribute=well-attribute-data --- >> ")
       }
       else{
-        streamDataFromKafkaToKudu(kafkaUrl, Array(attributeTopicName),kuduConnectionUrl,kuduConnectionUser,kuduConnectionPassword)
+        PutAttributes.processAttributes(kafkaUrl, Array(attributeTopicName), kuduConnectionUrl,kuduConnectionUser,kuduConnectionPassword,logLevel)
       }
 
 
@@ -255,27 +289,6 @@ object PutAttributes {
 
   }
 
-  def WARN(s: String): Unit={
-    if (log.isEnabledFor(Level.WARN)) {
-      log.warn(s)
-    }
-  }
-
-  def INFO(s: String): Unit={
-    if (log.isInfoEnabled()) {
-      log.info(s)
-    }
-  }
-
-  def DEBUG(s: String): Unit={
-    if (log.isDebugEnabled()) {
-      log.debug(s)
-    }
-  }
-
-  def ERROR(s: String): Unit={
-    log.error(s)
-  }
 
 
 
@@ -283,7 +296,7 @@ object PutAttributes {
     if (con != null) {
       con.close()
     }
-    INFO("disconnected")
+    TempusUtils.INFO("disconnected")
   }
 
 }
