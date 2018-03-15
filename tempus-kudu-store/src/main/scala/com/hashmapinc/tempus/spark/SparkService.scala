@@ -1,4 +1,4 @@
-package com.hashmapinc.tempus.util
+package com.hashmapinc.tempus.spark
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.{Seconds, StreamingContext}

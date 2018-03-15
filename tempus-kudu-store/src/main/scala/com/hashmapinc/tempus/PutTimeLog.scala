@@ -1,11 +1,14 @@
 package com.hashmapinc.tempus
 
 import java.io.FileInputStream
-import java.util.{Properties}
+import java.util.Properties
 
-import com.hashmapinc.tempus.util.{KafkaService, SparkService, TempusKuduConstants, TempusUtils}
+import com.hashmapinc.tempus.kafka.KafkaService
+import com.hashmapinc.tempus.kudu.KuduService
+import com.hashmapinc.tempus.spark.SparkService
+import com.hashmapinc.tempus.util.{TempusKuduConstants, TempusUtils}
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.streaming.kafka010.{HasOffsetRanges}
+import org.apache.spark.streaming.kafka010.HasOffsetRanges
 import org.apache.kudu.spark.kudu._
 
 /**
@@ -15,15 +18,20 @@ object PutTimeLog {
 
 
 
-  val log = Logger.getLogger(PutDataInKudu.getClass)
+  val log = Logger.getLogger(PutTimeLog.getClass)
 
   val groupId = "TimeLog"
 
-  def processTimeLog(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String,impalaKuduUrl:String,kuduUser:String,kuduPassword:String, level: String="WARN"): Unit = {
-    val connection =  TempusUtils.getImpalaConnection(impalaKuduUrl, kuduUser, kuduPassword)
+  def processTimeLog(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String,impalaKuduUrl:String,kuduUser:String,kuduPassword:String, groupId:String, timeWindow :String, level: String="WARN"): Unit = {
+    val connection =  KuduService.getImpalaConnection(impalaKuduUrl, kuduUser, kuduPassword)
 
     val spark = SparkService.getSparkSession("PutTimeLog")
-    val streamContext = SparkService.getStreamContext(spark,10)
+
+    var timeWindowInt = 10
+    if(!TempusUtils.isEmpty(timeWindow))
+      timeWindowInt = timeWindow.toInt
+
+    val streamContext = SparkService.getStreamContext(spark,timeWindowInt)
 
     streamContext.sparkContext.setLogLevel(level)
 
@@ -36,7 +44,7 @@ object PutTimeLog {
           val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
           offsetRanges.foreach(offset => {
             //This method will save the offset to kudu_tempus.offsetmgr table
-            TempusUtils.saveOffsets(connection,topics(0),groupId,offset.untilOffset)
+            KuduService.saveOffsets(connection,topics(0),groupId,offset.untilOffset)
           })
           rdd
       }.map(_.value())
@@ -96,6 +104,8 @@ object PutTimeLog {
     var logLevel = ""
     var kuduTableName = "impala::kudu_tempus.time_log"
     var impalaKuduUrl = ""
+    var groupId = ""
+    var timeWindow = ""
 
 
     try{
@@ -110,6 +120,8 @@ object PutTimeLog {
       topicName = prop.getProperty(TempusKuduConstants.TOPIC_TIMELOG_PROP)
       kuduTableName = "impala::"+prop.getProperty(TempusKuduConstants.KUDU_TIMELOG_TABLE)
       impalaKuduUrl = prop.getProperty(TempusKuduConstants.KUDU_IMPALA_CONNECTION_URL_PROP)
+      groupId =  prop.getProperty(TempusKuduConstants.TIMELOG_KAFKA_GROUP)
+      timeWindow =  prop.getProperty(TempusKuduConstants.TIMELOG_TIME_WINDOW)
 
 
       log.info(" kafkaUrl  --- >> "+kafkaUrl)
@@ -117,14 +129,19 @@ object PutTimeLog {
       log.info(" kuduConnectionUrl --- >> "+kuduConnectionUrl)
       log.info(" kuduConnectionUser --- >> "+kuduConnectionUser)
       log.info(" kuduConnectionPassword --- >> "+kuduConnectionPassword)
+      log.info(" topicName  --- >> "+topicName)
+      log.info(" kuduTableName  --- >> "+kuduTableName)
+      log.info(" impalaKuduUrl --- >> "+impalaKuduUrl)
+      log.info(" groupId --- >> "+groupId)
+      log.info(" timeWindow --- >> "+timeWindow)
 
-      if(kafkaUrl == null || topicName == null || kuduConnectionUrl== null || kuduConnectionUser== null || kuduConnectionPassword== null){
+      if(TempusUtils.isEmpty(kafkaUrl) || TempusUtils.isEmpty(topicName)  || TempusUtils.isEmpty(kuduConnectionUrl) || TempusUtils.isEmpty(kuduConnectionUser)  || TempusUtils.isEmpty(kuduConnectionPassword)){
         log.info("  <<<--- kudu_witsml.properties file should be presented at classpath location with following properties " +
           "kudu.db.url=<HOST_IP>:<PORT>/<DATABASE_SCHEMA>\nkudu.db.user=demo\nkudu.db.password=demo\nkafka.url=kafka:9092\n" +
-          "topic.witsml.attribute=well-attribute-data --- >> ")
+          "topic.witsml.timelog=well-log-ts-data --- >> ")
       }
       else{
-        PutTimeLog.processTimeLog(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,impalaKuduUrl,kuduConnectionUser,kuduConnectionPassword,logLevel)
+        PutTimeLog.processTimeLog(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,impalaKuduUrl,kuduConnectionUser,kuduConnectionPassword,groupId,timeWindow,logLevel)
       }
 
 

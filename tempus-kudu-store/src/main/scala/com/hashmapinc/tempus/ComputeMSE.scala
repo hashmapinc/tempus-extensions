@@ -3,25 +3,17 @@ package com.hashmapinc.tempus
 import java.io.FileInputStream
 import java.util.Properties
 
-import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.log4j.{Level, Logger}
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.streaming._
-import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
-import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.apache.log4j.Logger
 import org.apache.spark.streaming.kafka010._
-
-import scala.util.parsing.json._
-import scala.collection.mutable.HashMap
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.hashmapinc.tempus.util.TempusKuduConstants
-
-import scala.tools.scalap.scalax.util.StringUtil
+import com.hashmapinc.tempus.kafka.KafkaService
+import com.hashmapinc.tempus.kudu.KuduService
+import com.hashmapinc.tempus.spark.SparkService
+import com.hashmapinc.tempus.util.{TempusKuduConstants, TempusUtils}
 
 
 object ComputeMSE {
-  //val logLevelMap = Map("INFO"->Level.INFO, "WARN"->Level.WARN, "DEBUG"->Level.DEBUG)
+
   val log = Logger.getLogger(ComputeMSE.getClass)
 
   var torKey :String = "";
@@ -31,52 +23,51 @@ object ComputeMSE {
   var mnemonicName :String = "";
 
 
-  def streamComputedMSE(kafka: String, topics: Array[String], mqttUrl: String, gatewayToken: String, mqttTopic:String, level: String="WARN"): Unit = {
-   // log.setLevel(TempusKuduConstants.logLevelMap(level))
-  //  TempusPublisher.setLogLevel(logLevelMap(level))
-    val kafkaParams = Map[String, Object](
-      "bootstrap.servers" -> kafka,
-      "key.deserializer" -> classOf[StringDeserializer],
-      "value.deserializer" -> classOf[StringDeserializer],
-      "group.id" -> topics(0),
-      "auto.offset.reset" -> "latest",
-      "enable.auto.commit" -> (false: java.lang.Boolean)
-    )
-    val sparkConf = new SparkConf().setAppName("ComputeMSE")
-    val ssc = new StreamingContext(sparkConf, Seconds(1))
-    ssc.sparkContext.setLogLevel("WARN")
+  def computeMSE(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduUser:String,kuduPassword:String,mqttUrl: String, gatewayToken: String, mqttTopic:String, groupId:String, timeWindow :String, level: String="WARN"): Unit = {
 
-    val stream = KafkaUtils
-      .createDirectStream[String, String](ssc, PreferConsistent, Subscribe[String, String](topics, kafkaParams))
+  //  log.setLevel(TempusKuduConstants.logLevelMap(level))
+  //  TempusPublisher.setLogLevel(TempusKuduConstants.logLevelMap(level))
+    val connection =  KuduService.getImpalaConnection(kuduUrl, kuduUser, kuduPassword)
+    val spark = SparkService.getSparkSession("ComputeMSE")
 
-    assert((stream != null), ERROR("Kafka stream is not available. Check your Kafka setup."))
+    var timeWindowInt = 10
+    if(!TempusUtils.isEmpty(timeWindow))
+      timeWindowInt = timeWindow.toInt
 
-    //Stream could be empty but that is perfectly okay
-    val values  = stream.map(_.value())
-                        .filter(_.length>0)                     //Ignore empty lines
-                        .map(toMap(_))
-                        .filter(isValidRecord(_))            //Ignore empty records - id for growing objects and nameWell for attributes
-                        .map(computeMSE(_))
+    val streamContext = SparkService.getStreamContext(spark,timeWindowInt)
+    streamContext.sparkContext.setLogLevel(level)
 
-   // var con : MqttAsyncClient = null
-   //   if(con==null){
+    import spark.implicits._
+    val stream = KafkaService.readKafka(kafkaUrl, topics, kuduUrl,kuduUser,kuduPassword, groupId, streamContext)
 
-    //  }
+    stream
+      .transform {
+        rdd =>
+          val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+          offsetRanges.foreach(offset => {
+            //This method will save the offset to kudu_tempus.offsetmgr table
+            KuduService.saveOffsets(connection,topics(0),groupId,offset.untilOffset)
+          })
+          rdd
+      }.map(_.value())
+      .filter(_.length>0)                     //Ignore empty lines
+      .map(TempusUtils.toMap(_))
+      .filter(isValidRecord(_))
+      .map(computeMSE(_))
+      .foreachRDD(rdd =>{
+        if (!rdd.isEmpty()) {
+          rdd.foreachPartition { p =>
+            val con = TempusPublisher.connect(mqttUrl, gatewayToken)
+            p.foreach(record => TempusPublisher.publishMSE(con, mqttTopic, toTempusData(record)))
 
-    values.foreachRDD(rdd =>{
-      if (!rdd.isEmpty()) {
-        rdd.foreachPartition { p =>
-          val con = TempusPublisher.connect(mqttUrl, gatewayToken)
-          p.foreach(record => TempusPublisher.publishMSE(con, mqttTopic, toTempusData(record)))
-
+          }
         }
-      }
-    })
+      })
 
-    ssc.start()
-    ssc.awaitTermination()
-   // con.disconnect()
+    streamContext.start()
+    streamContext.awaitTermination()
   }
+
 
   def toTempusData(record: Map[String, String]): String = {
     val mapper = new ObjectMapper()
@@ -89,15 +80,11 @@ object ComputeMSE {
     var mseValue : Double = 0.0
     var keyValue = record.getOrElse(key, "")
 
-   // INFO("  keyValue ===>>> "+keyValue)
-
     if(!keyValue.isEmpty)
       mseValue = keyValue.toDouble
 
-   // INFO("  mseValue ===>>> "+mseValue)
-
     obj.put(key, mseValue)
-    INFO(s"Publishing: ${mapper.writeValueAsString(json)}")
+    TempusUtils.INFO(s"Publishing: ${mapper.writeValueAsString(json)}")
     mapper.writeValueAsString(json)
   }
 
@@ -127,95 +114,7 @@ object ComputeMSE {
   }
 
 
-  def toMap(record: String): Map[String, String]= {
-    var result = JSON.parseRaw(record).getOrElse(null)
-    if (result == null) {
-      WARN(s"Record could not be parsed as a JSON object: ${record}")
-      Map()
-    } else {
-      var map = result.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
-      map
-    }
-  }
 
- /* def toMapOld(record: String): Map[String, String]= {
-    var map = Map[String, String]()
-    var result = JSON.parseRaw(record).getOrElse(null)
-    if (result == null) {
-      WARN(s"Record could not be parsed as a JSON object: ${record}")
-      return map
-    }
-    var tmp = result.asInstanceOf[JSONObject].obj.asInstanceOf[Map[String, String]]
-    var tmpIter = tmp.keySet.iterator
-    var hashMap = new HashMap[String, String]
-
-    //val secondPart = tmpKey//.split("@")(1)
-    var logName = tmp.getOrElse("LogName","")
-    var nameWell = tmp.getOrElse("nameWell","")
-    var diameter = tmp.getOrElse("diameter","")
-
-    var diameterDouble :Double = 0.0
-    if(!diameter.isEmpty){
-      try{
-        diameterDouble = diameter.toDouble
-      }catch{
-        case  exp : Exception => exp.printStackTrace()
-      }
-
-    }
-    hashMap.put("nameWell", nameWell)
-    hashMap.put("nameLog", logName)
-    hashMap.put("diameter", diameter)
-    hashMap.put("tempus.tsds", "tempus.tsds")
-
-
-    if(tmp.getOrElse(torKey, null) != null)
-    hashMap.put(torKey, tmp.getOrElse(torKey, null))
-
-    if(tmp.getOrElse(rpmKey, null) != null)
-    hashMap.put(rpmKey, tmp.getOrElse(rpmKey, null))
-
-    if(tmp.getOrElse(wobKey, null) != null)
-    hashMap.put(wobKey, tmp.getOrElse(wobKey, null))
-
-    if(tmp.getOrElse(ropKey, null) != null)
-    hashMap.put(ropKey, tmp.getOrElse(ropKey, null))
-
-
-    if (hashMap.size<8) { //We need at least 7 params: tempus.tsds,TOR,RPM,WOB,ROP,dia,nameWell
-      DEBUG(s"Record does not have at least one of tempus.tsds, TOR, RPM, WOB, ROP, diameter, nameLog, or nameWell: ${record}")
-      return map
-    }
-    var keyIter = hashMap.keysIterator
-    while (keyIter.hasNext) {
-      val key = keyIter.next()
-      map = map + (key -> hashMap.getOrElse(key, null))
-    }
-    map
-  }*/
-
-
-  def WARN(s: String): Unit={
-    if (log.isEnabledFor(Level.WARN)) {
-      log.warn(s)
-    }
-  }
-
-  def INFO(s: String): Unit={
-    if (log.isInfoEnabled()) {
-      log.info(s)
-    }
-  }
-
-  def DEBUG(s: String): Unit={
-    if (log.isDebugEnabled()) {
-      log.debug(s)
-    }
-  }
-
-  def ERROR(s: String): Unit={
-    log.error(s)
-  }
 
 
   def main(args: Array[String]) : Unit = {
@@ -225,9 +124,12 @@ object ComputeMSE {
     var logLevel = ""
     var tokenName = ""
     var mqttUrl = ""
-
     var mqttTopic = ""
-
+    var kuduConnectionUrl = ""
+    var kuduConnectionUser = ""
+    var kuduConnectionPassword = ""
+    var groupId = ""
+    var timeWindow = ""
 
     try{
       val prop = new Properties()
@@ -237,33 +139,39 @@ object ComputeMSE {
       logLevel = prop.getProperty(TempusKuduConstants.LOG_LEVEL)
       topicName = prop.getProperty(TempusKuduConstants.TOPIC_MSE_PROP)
       tokenName = prop.getProperty(TempusKuduConstants.TEMPUS_MQTT_TOKEN)
-
       mqttUrl = prop.getProperty(TempusKuduConstants.TEMPUS_MQTT_URL)
       mqttTopic = prop.getProperty(TempusKuduConstants.TEMPUS_MQTT_TOPIC)
-
       torKey = prop.getProperty(TempusKuduConstants.MSE_TOR_KEY)
       wobKey = prop.getProperty(TempusKuduConstants.MSE_WOB_KEY)
       rpmKey = prop.getProperty(TempusKuduConstants.MSE_RPM_KEY)
       ropKey = prop.getProperty(TempusKuduConstants.MSE_ROP_KEY)
       mnemonicName = prop.getProperty(TempusKuduConstants.MSE_MNEMONIC)
-
+      kuduConnectionUrl = prop.getProperty(TempusKuduConstants.KUDU_IMPALA_CONNECTION_URL_PROP)
+      kuduConnectionUser = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_USER_PROP)
+      kuduConnectionPassword = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_PASSWORD_PROP)
+      groupId =  prop.getProperty(TempusKuduConstants.MSE_KAFKA_GROUP)
+      timeWindow =  prop.getProperty(TempusKuduConstants.MSE_TIME_WINDOW)
 
       log.info(" kafkaUrl  --- >> "+kafkaUrl)
       log.info(" topicName  --- >> "+topicName)
       log.info(" mqttUrl --- >> "+mqttUrl)
       log.info(" tokenName --- >> "+tokenName)
       log.info(" mqttTopic --- >> "+mqttTopic)
-
       log.info(" mnemonicName --- >> "+mnemonicName)
+      log.info(" kuduConnectionUrl --- >> "+kuduConnectionUrl)
+      log.info(" kuduConnectionUser --- >> "+kuduConnectionUser)
+      log.info(" kuduConnectionPassword --- >> "+kuduConnectionPassword)
+      log.info(" groupId --- >> "+groupId)
+      log.info(" timeWindow --- >> "+timeWindow)
 
-
-      if(kafkaUrl == null  || topicName == null || mqttUrl == null|| tokenName == null || mqttTopic == null){
+      if(TempusUtils.isEmpty(kafkaUrl) || TempusUtils.isEmpty(topicName)  || TempusUtils.isEmpty(mqttUrl)
+        || TempusUtils.isEmpty(tokenName)  || TempusUtils.isEmpty(mqttTopic)){
         log.info("  <<<--- kudu_witsml.properties file should be presented at classpath location with following properties " +
           "tempus.mqtt.url=tcp://<TempusServerIP>:1883\ntempus.mqtt.token=gatewaytoken\ntopic.witsml.mse=well-mse-data\nkafka.url=kafka:9092" +
           "\ntempus.mqtt.topic=v1/gateway/depth/telemetry >> ")
       }
       else{
-        ComputeMSE.streamComputedMSE(kafkaUrl, Array(topicName),  mqttUrl, tokenName, mqttTopic, logLevel)
+        ComputeMSE.computeMSE(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduConnectionUser,kuduConnectionPassword, mqttUrl, tokenName, mqttTopic, groupId, timeWindow,logLevel)
       }
 
 

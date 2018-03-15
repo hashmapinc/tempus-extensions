@@ -1,9 +1,13 @@
 package com.hashmapinc.tempus
 import java.io.FileInputStream
 import java.util.Properties
-import com.hashmapinc.tempus.util.{KafkaService, SparkService, TempusKuduConstants, TempusUtils}
-import org.apache.log4j.{Logger}
-import org.apache.spark.streaming.kafka010.{HasOffsetRanges}
+
+import com.hashmapinc.tempus.kafka.KafkaService
+import com.hashmapinc.tempus.kudu.KuduService
+import com.hashmapinc.tempus.spark.SparkService
+import com.hashmapinc.tempus.util.{TempusKuduConstants, TempusUtils}
+import org.apache.log4j.Logger
+import org.apache.spark.streaming.kafka010.HasOffsetRanges
 import org.apache.kudu.spark.kudu._
 
 /**
@@ -13,15 +17,18 @@ object PutTrajectory {
 
 
 
-  val log = Logger.getLogger(PutDataInKudu.getClass)
+  val log = Logger.getLogger(PutTrajectory.getClass)
 
-  val groupId = "Trajectory"
+  def processTrajectory(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String,impalaKuduUrl:String,kuduUser:String,kuduPassword:String, groupId:String, timeWindow :String, level: String="WARN"): Unit = {
+    val connection =  KuduService.getImpalaConnection(impalaKuduUrl, kuduUser, kuduPassword)
 
-  def processTrajectory(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduTableName:String,impalaKuduUrl:String,kuduUser:String,kuduPassword:String, level: String="WARN"): Unit = {
-    val connection =  TempusUtils.getImpalaConnection(impalaKuduUrl, kuduUser, kuduPassword)
+    val spark = SparkService.getSparkSession("PutTrajectory")
 
-    val spark = SparkService.getSparkSession("PutMessage")
-    val streamContext = SparkService.getStreamContext(spark,10)
+    var timeWindowInt = 10
+    if(!TempusUtils.isEmpty(timeWindow))
+      timeWindowInt = timeWindow.toInt
+
+    val streamContext = SparkService.getStreamContext(spark,timeWindowInt)
     streamContext.sparkContext.setLogLevel(level)
 
     import spark.implicits._
@@ -33,7 +40,7 @@ object PutTrajectory {
           val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
           offsetRanges.foreach(offset => {
             //This method will save the offset to kudu_tempus.offsetmgr table
-            TempusUtils.saveOffsets(connection,topics(0),groupId,offset.untilOffset)
+            KuduService.saveOffsets(connection,topics(0),groupId,offset.untilOffset)
           })
           rdd
       }.map(_.value())
@@ -174,6 +181,8 @@ object PutTrajectory {
     var logLevel = ""
     var kuduTableName = "impala::kudu_tempus.depth_log"
     var impalaKuduUrl = ""
+    var groupId = ""
+    var timeWindow = ""
 
     try{
       val prop = new Properties()
@@ -187,6 +196,8 @@ object PutTrajectory {
       topicName = prop.getProperty(TempusKuduConstants.TOPIC_TRAJECTORY_PROP)
       impalaKuduUrl = prop.getProperty(TempusKuduConstants.KUDU_IMPALA_CONNECTION_URL_PROP)
       kuduTableName = "impala::"+prop.getProperty(TempusKuduConstants.KUDU_TRAJECTORY_TABLE)
+      groupId =  prop.getProperty(TempusKuduConstants.TRAJECTORY_KAFKA_GROUP)
+      timeWindow =  prop.getProperty(TempusKuduConstants.TRAJECTORY_TIME_WINDOW)
 
 
       log.info(" kafkaUrl  --- >> "+kafkaUrl)
@@ -194,14 +205,19 @@ object PutTrajectory {
       log.info(" kuduConnectionUrl --- >> "+kuduConnectionUrl)
       log.info(" kuduConnectionUser --- >> "+kuduConnectionUser)
       log.info(" kuduConnectionPassword --- >> "+kuduConnectionPassword)
+      log.info(" topicName  --- >> "+topicName)
+      log.info(" kuduTableName  --- >> "+kuduTableName)
+      log.info(" impalaKuduUrl --- >> "+impalaKuduUrl)
+      log.info(" groupId --- >> "+groupId)
+      log.info(" timeWindow --- >> "+timeWindow)
 
-      if(kafkaUrl == null || topicName == null || kuduConnectionUrl== null || kuduConnectionUser== null || kuduConnectionPassword== null){
+      if(TempusUtils.isEmpty(kafkaUrl) || TempusUtils.isEmpty(topicName)  || TempusUtils.isEmpty(kuduConnectionUrl) || TempusUtils.isEmpty(kuduConnectionUser)  || TempusUtils.isEmpty(kuduConnectionPassword)){
         log.info("  <<<--- kudu_witsml.properties file should be presented at classpath location with following properties " +
           "kudu.db.url=<HOST_IP>:<PORT>/<DATABASE_SCHEMA>\nkudu.db.user=demo\nkudu.db.password=demo\nkafka.url=kafka:9092\n" +
-          "topic.witsml.attribute=well-attribute-data --- >> ")
+          "topic.witsml.trajectory=well-trajectory-data --- >> ")
       }
       else{
-        PutTrajectory.processTrajectory(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,impalaKuduUrl,kuduConnectionUser,kuduConnectionPassword,logLevel)
+        PutTrajectory.processTrajectory(kafkaUrl, Array(topicName), kuduConnectionUrl,kuduTableName,impalaKuduUrl,kuduConnectionUser,kuduConnectionPassword,groupId,timeWindow,logLevel)
       }
 
 
