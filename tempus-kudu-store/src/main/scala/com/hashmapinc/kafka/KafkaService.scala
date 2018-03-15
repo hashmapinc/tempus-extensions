@@ -1,6 +1,6 @@
-package com.hashmapinc.tempus.kafka
+package com.hashmapinc.kafka
 
-import com.hashmapinc.tempus.kudu.KuduService
+import com.hashmapinc.kudu.KuduService
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.InputDStream

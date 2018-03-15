@@ -6,10 +6,10 @@ import java.util.Properties
 import org.apache.log4j.Logger
 import org.apache.spark.streaming.kafka010._
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.hashmapinc.tempus.kafka.KafkaService
-import com.hashmapinc.tempus.kudu.KuduService
-import com.hashmapinc.tempus.spark.SparkService
-import com.hashmapinc.tempus.util.{TempusKuduConstants, TempusUtils}
+import com.hashmapinc.kafka.KafkaService
+import com.hashmapinc.kudu.KuduService
+import com.hashmapinc.spark.SparkService
+import com.hashmapinc.util.{TempusKuduConstants, TempusUtils}
 
 
 object ComputeMSE {

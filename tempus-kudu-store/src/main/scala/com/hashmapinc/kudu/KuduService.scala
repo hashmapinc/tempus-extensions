@@ -1,9 +1,9 @@
-package com.hashmapinc.tempus.kudu
+package com.hashmapinc.kudu
 
 import java.sql.{Connection, DriverManager}
 
-import com.hashmapinc.tempus.util.TempusKuduConstants.{OFFSETMGR, upsertSQLMap}
-import com.hashmapinc.tempus.util.TempusUtils
+import com.hashmapinc.util.TempusKuduConstants.{OFFSETMGR, upsertSQLMap}
+import com.hashmapinc.util.TempusUtils
 import org.apache.kafka.common.TopicPartition
 
 /**

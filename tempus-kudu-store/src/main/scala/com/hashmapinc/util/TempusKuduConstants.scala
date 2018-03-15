@@ -1,4 +1,4 @@
-package com.hashmapinc.tempus.util
+package com.hashmapinc.util
 
 import org.apache.log4j.{Level, Logger}
 

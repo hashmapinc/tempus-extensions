@@ -1,4 +1,4 @@
-package com.hashmapinc.tempus.util
+package com.hashmapinc.util
 
 import java.text.SimpleDateFormat
 import java.util.Calendar

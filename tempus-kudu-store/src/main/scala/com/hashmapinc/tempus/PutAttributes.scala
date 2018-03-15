@@ -3,14 +3,14 @@ package com.hashmapinc.tempus
 import java.io.FileInputStream
 import java.util.Properties
 
-import com.hashmapinc.tempus.util.{TempusKuduConstants, TempusUtils}
+import com.hashmapinc.util.{TempusKuduConstants, TempusUtils}
 import org.apache.spark.streaming.kafka010._
 import org.apache.log4j.Logger
 import java.sql.{Connection, PreparedStatement}
 
-import com.hashmapinc.tempus.kafka.KafkaService
-import com.hashmapinc.tempus.kudu.KuduService
-import com.hashmapinc.tempus.spark.SparkService
+import com.hashmapinc.kafka.KafkaService
+import com.hashmapinc.kudu.KuduService
+import com.hashmapinc.spark.SparkService
 
 
 /**
