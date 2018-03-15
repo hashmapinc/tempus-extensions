@@ -64,10 +64,15 @@ object PutMessages {
   def toMessage(map: Map[String, String]):  TimeLog= {
     val dla: Array[TimeLog] = new Array[TimeLog](map.size-TempusKuduConstants.specialKeySet.size)
     var messageTime = map("tempus.tsds")
-    var logName = "Msg #" + messageTime
+   // var logName = "Msg #" + messageTime
     var nameWell = map("nameWell")
     var nameWellbore = map("nameWellbore")
     var messageText = map("Message")
+    var logName = map("LogName")
+
+    if(TempusUtils.isEmpty(logName))
+      logName = "Log #messages_time"
+
     messageTime = TempusUtils.getFormattedTime(messageTime)
     var keyIter = map.keys.toIterator
     TimeLog(nameWell, nameWellbore, logName, "Message", messageTime, 0, messageText)

@@ -43,7 +43,7 @@ object TempusKuduConstants {
   val MSE_MNEMONIC= "mse.mnemonic"
   val OFFSETMGR  = "OFFSETMGR"
   val GETOFFSETMGR  = "GETOFFSETMGR"
-
+  val MAX_INFLIGHT_SIZE = 1000
 
   val DEPTHLOG_KAFKA_GROUP="depthlog.kafka.group"
   val DEPTHLOG_TIME_WINDOW = "depthlog.kafka.window"

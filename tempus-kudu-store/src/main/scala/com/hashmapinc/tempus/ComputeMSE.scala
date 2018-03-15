@@ -57,8 +57,8 @@ object ComputeMSE {
       .foreachRDD(rdd =>{
         if (!rdd.isEmpty()) {
           rdd.foreachPartition { p =>
-            val con = TempusPublisher.connect(mqttUrl, gatewayToken)
-            p.foreach(record => TempusPublisher.publishMSE(con, mqttTopic, toTempusData(record)))
+
+            p.foreach(record => TempusPublisher.publishMSE(mqttUrl, gatewayToken, mqttTopic, toTempusData(record)))
 
           }
         }
