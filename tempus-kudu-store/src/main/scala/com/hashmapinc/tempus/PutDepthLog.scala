@@ -80,7 +80,7 @@ object PutDepthLog {
         try {
           value = valuestr.toDouble
         } catch {
-          case _ => 0.0
+          case  exp : Exception => value = 0.0
         }
         dla(i)=DepthLog(nameWell, nameWellbore, logName, mnemonic, ds, map("tempus.tsds").toDouble, value, valuestr)
         i = i+1
@@ -104,6 +104,8 @@ object PutDepthLog {
 
     try{
       val prop = new Properties()
+
+
       prop.load(new FileInputStream("kudu_witsml.properties"))
       kafkaUrl = prop.getProperty(TempusKuduConstants.KAFKA_URL_PROP)
       kuduConnectionUrl = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_URL_PROP)

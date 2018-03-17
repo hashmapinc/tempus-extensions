@@ -83,7 +83,7 @@ object PutTimeLog {
         try {
           value = valuestr.toDouble
         } catch {
-          case _ => 0.0
+          case  exp : Exception => value = 0.0
         }
         timeLogData(i)=TimeLog(nameWell, nameWellbore, logName, mnemonic, logTime, value, valuestr)
         i = i+1

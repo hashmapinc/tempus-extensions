@@ -29,6 +29,7 @@ object ComputeMSE {
   //  TempusPublisher.setLogLevel(TempusKuduConstants.logLevelMap(level))
     val connection =  KuduService.getImpalaConnection(kuduUrl, kuduUser, kuduPassword)
     val spark = SparkService.getSparkSession("ComputeMSE")
+    spark.sparkContext.setLogLevel(level)
 
     var timeWindowInt = 10
     if(!TempusUtils.isEmpty(timeWindow))
@@ -54,12 +55,11 @@ object ComputeMSE {
       .map(TempusUtils.toMap(_))
       .filter(isValidRecord(_))
       .map(computeMSE(_))
+      .filter(isValidRecord(_))
       .foreachRDD(rdd =>{
         if (!rdd.isEmpty()) {
           rdd.foreachPartition { p =>
-
             p.foreach(record => TempusPublisher.publishMSE(mqttUrl, gatewayToken, mqttTopic, toTempusData(record)))
-
           }
         }
       })
@@ -89,32 +89,50 @@ object ComputeMSE {
   }
 
   def computeMSE(record: Map[String, String]): Map[String, String]={
-    val tor: Double = record.getOrElse(torKey, 1.0).toString.toDouble
-    val rpm: Double = record.getOrElse(rpmKey, 1.0).toString.toDouble
-    val rop: Double = record.getOrElse(ropKey, 1.0).toString.toDouble
-    val wob: Double = record.getOrElse(wobKey, 1.0).toString.toDouble
-    val dia: Double = record.getOrElse("diameter", 1.0).toString.toDouble
-    val diaSquare = dia * dia
+    var mseKey :String = ""
+    try{
+      val tor: Double = record.getOrElse(torKey, -9999).toString.toDouble
+      val rpm: Double = record.getOrElse(rpmKey, -9999).toString.toDouble
+      val rop: Double = record.getOrElse(ropKey, -9999).toString.toDouble
+      val wob: Double = record.getOrElse(wobKey, -9999).toString.toDouble
+      val defaultDia :String = "diameter"
+      var logName: String = record.getOrElse("LogName", "")
+      logName = logName.replaceAll(" ","")
+      val diaLogName: String = defaultDia+logName
+      var dia: Double = record.getOrElse(diaLogName, -9999).toString.toDouble
 
-    //Mechanical Specific Energy
-    // [(480)(Torque)(RPM)]/[(Dia^2)*(ROP)]    +    [4*(WOB)]/[pi*(Dia^2)]  = MSE
-    // Centripital Energy    +    Axial Energy    =      MSE (ksi)
+     if(dia == -9999)
+        dia = record.getOrElse(defaultDia, -9999).toString.toDouble
 
-    val mse: String = String.valueOf((480 * tor * rpm) / (diaSquare * rop) + (4 * wob) / (diaSquare * scala.math.Pi))
+      if(tor == -9999 ||  rpm == -9999  ||  rop == -9999 || wob == -9999 ||  dia == -9999){
+        log.error(" Not a valid value to proceed for MSE computation tor => "+tor+" rpm => "+rpm+" rop => "+rop +" wob => "+wob+" diameter => "+dia)
+        null
+      }else{
 
-    val mseKey=mnemonicName+"@"+record.getOrElse("LogName", "")
-    record + ("CALC_MSE"->mseKey) + (mseKey -> mse)
+        val diaSquare = dia * dia
+        mseKey=mnemonicName+"@"+logName
+        //Mechanical Specific Energy
+        // [(480)(Torque)(RPM)]/[(Dia^2)*(ROP)]    +    [4*(WOB)]/[pi*(Dia^2)]  = MSE
+        // Centripital Energy    +    Axial Energy    =      MSE (ksi)
+
+        val centEnergy = (480 * tor * rpm) / (diaSquare * rop)
+        val axialEnergy = (4 * wob) / (diaSquare * scala.math.Pi)
+
+        val mse: String = String.valueOf(centEnergy + axialEnergy)
+        record + ("CALC_MSE"->mseKey) + (mseKey -> mse)
+      }
+    }catch{
+      case  exp : Exception => exp.printStackTrace()
+       // record + ("CALC_MSE"->mseKey) + (mseKey -> "0")
+      null
+    }
   }
-
   def isValidRecord(record: Map[String, Object]): Boolean = {
-    if (record.size == 0)
+    if (record == null || record.size == 0)
       return false
 
     return true
   }
-
-
-
 
 
   def main(args: Array[String]) : Unit = {
@@ -151,6 +169,7 @@ object ComputeMSE {
       kuduConnectionPassword = prop.getProperty(TempusKuduConstants.KUDU_CONNECTION_PASSWORD_PROP)
       groupId =  prop.getProperty(TempusKuduConstants.MSE_KAFKA_GROUP)
       timeWindow =  prop.getProperty(TempusKuduConstants.MSE_TIME_WINDOW)
+
 
       log.info(" kafkaUrl  --- >> "+kafkaUrl)
       log.info(" topicName  --- >> "+topicName)
