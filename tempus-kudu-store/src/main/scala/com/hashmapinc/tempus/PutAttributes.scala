@@ -51,7 +51,7 @@ object PutAttributes {
       .map(TempusUtils.toMap(_))
       .filter(_.size>0)
       .foreachRDD(rdd =>{
-        if (!rdd.isEmpty()) {
+        if (rdd != null && !rdd.isEmpty()) {
           rdd.foreachPartition { p =>
             val con =  KuduService.getImpalaConnection(kuduUrl, kuduUser, kuduPassword)
 

@@ -23,16 +23,10 @@ object KafkaService {
       "enable.auto.commit" -> (false: java.lang.Boolean)
     )
 
-
-    //val ssc = new StreamingContext(sparkContext, Seconds(10))
     val con =  KuduService.getImpalaConnection(impalaKuduUrl, kuduUser, kuduPassword)
     val fromOffsets= KuduService.getOffsets(con,topics(0),groupId)
     val stream = KafkaUtils.createDirectStream[String, String](streamContext , PreferConsistent, ConsumerStrategies.Subscribe[String, String](topics, kafkaParams,fromOffsets))
     stream
-
-
-
-
   }
 
 }

@@ -2,7 +2,7 @@
 <template encoding-version="1.1">
   <description></description>
   <groupId>ec1c1e6d-3f07-1831-c6df-db979f9d8171</groupId>
-  <name>Tempus_Concho_03152018</name>
+  <name>03202018_Tempus_concho</name>
   <snippet>
     <connections>
       <id>8d1b7a8c-0a39-34a2-0000-000000000000</id>
@@ -2121,7 +2121,7 @@
               </entry>
             </properties>
             <runDurationMillis>0</runDurationMillis>
-            <schedulingPeriod>0 sec</schedulingPeriod>
+            <schedulingPeriod>2 sec</schedulingPeriod>
             <schedulingStrategy>TIMER_DRIVEN</schedulingStrategy>
             <yieldDuration>1 sec</yieldDuration>
           </config>
@@ -2134,7 +2134,7 @@
             <autoTerminate>false</autoTerminate>
             <name>Success</name>
           </relationships>
-          <state>RUNNING</state>
+          <state>STOPPED</state>
           <style></style>
           <type>com.hashmapinc.tempus.nifi.processors.LogToTempus</type>
         </processors>
@@ -3671,27 +3671,6 @@
           <zIndex>0</zIndex>
         </connections>
         <connections>
-          <id>18649d0b-6037-305c-0000-000000000000</id>
-          <parentGroupId>200daf72-8fdf-3567-0000-000000000000</parentGroupId>
-          <backPressureDataSizeThreshold>1 GB</backPressureDataSizeThreshold>
-          <backPressureObjectThreshold>10000</backPressureObjectThreshold>
-          <destination>
-            <groupId>200daf72-8fdf-3567-0000-000000000000</groupId>
-            <id>3845bda9-bd6a-396d-0000-000000000000</id>
-            <type>PROCESSOR</type>
-          </destination>
-          <flowFileExpiration>0 sec</flowFileExpiration>
-          <labelIndex>1</labelIndex>
-          <name></name>
-          <selectedRelationships>matched</selectedRelationships>
-          <source>
-            <groupId>200daf72-8fdf-3567-0000-000000000000</groupId>
-            <id>f6c95426-7c0a-347a-0000-000000000000</id>
-            <type>PROCESSOR</type>
-          </source>
-          <zIndex>0</zIndex>
-        </connections>
-        <connections>
           <id>2443047b-5651-3fb9-0000-000000000000</id>
           <parentGroupId>200daf72-8fdf-3567-0000-000000000000</parentGroupId>
           <backPressureDataSizeThreshold>1 GB</backPressureDataSizeThreshold>
@@ -3754,6 +3733,27 @@
           <zIndex>0</zIndex>
         </connections>
         <connections>
+          <id>651e2c8b-a634-317f-0000-000000000000</id>
+          <parentGroupId>200daf72-8fdf-3567-0000-000000000000</parentGroupId>
+          <backPressureDataSizeThreshold>1 GB</backPressureDataSizeThreshold>
+          <backPressureObjectThreshold>10000</backPressureObjectThreshold>
+          <destination>
+            <groupId>200daf72-8fdf-3567-0000-000000000000</groupId>
+            <id>3845bda9-bd6a-396d-0000-000000000000</id>
+            <type>PROCESSOR</type>
+          </destination>
+          <flowFileExpiration>0 sec</flowFileExpiration>
+          <labelIndex>1</labelIndex>
+          <name></name>
+          <selectedRelationships>matched</selectedRelationships>
+          <source>
+            <groupId>200daf72-8fdf-3567-0000-000000000000</groupId>
+            <id>f6c95426-7c0a-347a-0000-000000000000</id>
+            <type>PROCESSOR</type>
+          </source>
+          <zIndex>0</zIndex>
+        </connections>
+        <connections>
           <id>796fd92b-a468-3703-0000-000000000000</id>
           <parentGroupId>200daf72-8fdf-3567-0000-000000000000</parentGroupId>
           <backPressureDataSizeThreshold>1 GB</backPressureDataSizeThreshold>
@@ -3805,7 +3805,7 @@
           <comments></comments>
           <concurrentlySchedulableTaskCount>1</concurrentlySchedulableTaskCount>
           <name>OutputToTime</name>
-          <state>RUNNING</state>
+          <state>STOPPED</state>
           <type>OUTPUT_PORT</type>
         </outputPorts>
         <outputPorts>
@@ -3818,7 +3818,7 @@
           <comments></comments>
           <concurrentlySchedulableTaskCount>1</concurrentlySchedulableTaskCount>
           <name>OutputToDepth</name>
-          <state>RUNNING</state>
+          <state>STOPPED</state>
           <type>OUTPUT_PORT</type>
         </outputPorts>
         <processors>
@@ -4134,7 +4134,7 @@
             <version>1.0-SNAPSHOT</version>
           </bundle>
           <config>
-            <bulletinLevel>WARN</bulletinLevel>
+            <bulletinLevel>NONE</bulletinLevel>
             <comments></comments>
             <concurrentlySchedulableTaskCount>10</concurrentlySchedulableTaskCount>
             <descriptors>
@@ -4309,7 +4309,7 @@
             <autoTerminate>true</autoTerminate>
             <name>Trajectory</name>
           </relationships>
-          <state>RUNNING</state>
+          <state>STOPPED</state>
           <style>
             <entry>
               <key>background-color</key>
@@ -4322,8 +4322,8 @@
           <id>3845bda9-bd6a-396d-0000-000000000000</id>
           <parentGroupId>200daf72-8fdf-3567-0000-000000000000</parentGroupId>
           <position>
-            <x>1355.2547766710586</x>
-            <y>839.0226729845224</y>
+            <x>1362.6781165148086</x>
+            <y>846.4458297228036</y>
           </position>
           <bundle>
             <artifact>nifi-standard-nar</artifact>
@@ -4364,7 +4364,7 @@
               </entry>
             </properties>
             <runDurationMillis>0</runDurationMillis>
-            <schedulingPeriod>1 sec</schedulingPeriod>
+            <schedulingPeriod>0 sec</schedulingPeriod>
             <schedulingStrategy>TIMER_DRIVEN</schedulingStrategy>
             <yieldDuration>1 sec</yieldDuration>
           </config>
@@ -4385,7 +4385,7 @@
           <id>42b11ee3-b621-3e3f-0000-000000000000</id>
           <parentGroupId>200daf72-8fdf-3567-0000-000000000000</parentGroupId>
           <position>
-            <x>1355.2547766710586</x>
+            <x>1352.285416319496</x>
             <y>405.52471930871144</y>
           </position>
           <bundle>
@@ -4396,7 +4396,7 @@
           <config>
             <bulletinLevel>WARN</bulletinLevel>
             <comments></comments>
-            <concurrentlySchedulableTaskCount>1</concurrentlySchedulableTaskCount>
+            <concurrentlySchedulableTaskCount>7</concurrentlySchedulableTaskCount>
             <descriptors>
               <entry>
                 <key>WITSML SERVICE</key>
@@ -4721,7 +4721,7 @@
             <autoTerminate>false</autoTerminate>
             <name>unmatched</name>
           </relationships>
-          <state>STOPPED</state>
+          <state>RUNNING</state>
           <style></style>
           <type>org.apache.nifi.processors.standard.RouteOnAttribute</type>
         </processors>
@@ -4799,7 +4799,7 @@
               </entry>
             </properties>
             <runDurationMillis>0</runDurationMillis>
-            <schedulingPeriod>10 sec</schedulingPeriod>
+            <schedulingPeriod>0 sec</schedulingPeriod>
             <schedulingStrategy>TIMER_DRIVEN</schedulingStrategy>
             <yieldDuration>1 sec</yieldDuration>
           </config>
@@ -4812,7 +4812,7 @@
             <autoTerminate>false</autoTerminate>
             <name>Success</name>
           </relationships>
-          <state>STOPPED</state>
+          <state>RUNNING</state>
           <style></style>
           <type>com.hashmapinc.tempus.nifi.processors.TelemetryToTempus</type>
         </processors>
@@ -5009,7 +5009,7 @@
             <autoTerminate>true</autoTerminate>
             <name>success</name>
           </relationships>
-          <state>STOPPED</state>
+          <state>RUNNING</state>
           <style></style>
           <type>org.apache.nifi.processors.mqtt.PublishMQTT</type>
         </processors>
@@ -5156,7 +5156,7 @@
               </entry>
             </properties>
             <runDurationMillis>0</runDurationMillis>
-            <schedulingPeriod>10 sec</schedulingPeriod>
+            <schedulingPeriod>0 sec</schedulingPeriod>
             <schedulingStrategy>TIMER_DRIVEN</schedulingStrategy>
             <yieldDuration>1 sec</yieldDuration>
           </config>
@@ -5165,7 +5165,7 @@
             <autoTerminate>false</autoTerminate>
             <name>success</name>
           </relationships>
-          <state>STOPPED</state>
+          <state>RUNNING</state>
           <style></style>
           <type>org.apache.nifi.processors.attributes.UpdateAttribute</type>
         </processors>
@@ -5271,7 +5271,7 @@
             <autoTerminate>false</autoTerminate>
             <name>Success</name>
           </relationships>
-          <state>STOPPED</state>
+          <state>RUNNING</state>
           <style>
             <entry>
               <key>background-color</key>
@@ -5511,7 +5511,7 @@
             <autoTerminate>true</autoTerminate>
             <name>unmatched</name>
           </relationships>
-          <state>STOPPED</state>
+          <state>RUNNING</state>
           <style></style>
           <type>org.apache.nifi.processors.standard.EvaluateJsonPath</type>
         </processors>
@@ -8961,5 +8961,5 @@
       <name>GetAndPutTrajectory</name>
     </processGroups>
   </snippet>
-  <timestamp>03/15/2018 17:10:09 CDT</timestamp>
+  <timestamp>03/20/2018 10:09:15 CDT</timestamp>
 </template>

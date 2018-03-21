@@ -20,16 +20,21 @@ object ComputeMSE {
   var wobKey :String = "";
   var rpmKey :String = "";
   var ropKey :String = "";
-  var mnemonicName :String = "";
+  var mnemonicName :String = "CALC_MSE";
 
 
   def computeMSE(kafkaUrl: String, topics: Array[String], kuduUrl: String, kuduUser:String,kuduPassword:String,mqttUrl: String, gatewayToken: String, mqttTopic:String, groupId:String, timeWindow :String, level: String="WARN"): Unit = {
 
   //  log.setLevel(TempusKuduConstants.logLevelMap(level))
   //  TempusPublisher.setLogLevel(TempusKuduConstants.logLevelMap(level))
+
+
+
     val connection =  KuduService.getImpalaConnection(kuduUrl, kuduUser, kuduPassword)
     val spark = SparkService.getSparkSession("ComputeMSE")
     spark.sparkContext.setLogLevel(level)
+
+   // spark.sparkContext.broadcast(client)
 
     var timeWindowInt = 10
     if(!TempusUtils.isEmpty(timeWindow))
@@ -40,6 +45,7 @@ object ComputeMSE {
 
     import spark.implicits._
     val stream = KafkaService.readKafka(kafkaUrl, topics, kuduUrl,kuduUser,kuduPassword, groupId, streamContext)
+
 
     stream
       .transform {
@@ -57,9 +63,12 @@ object ComputeMSE {
       .map(computeMSE(_))
       .filter(isValidRecord(_))
       .foreachRDD(rdd =>{
-        if (!rdd.isEmpty()) {
+        if (rdd != null && !rdd.isEmpty()) {
           rdd.foreachPartition { p =>
-            p.foreach(record => TempusPublisher.publishMSE(mqttUrl, gatewayToken, mqttTopic, toTempusData(record)))
+
+            val client = TempusPublisher.connect(mqttUrl, gatewayToken)
+            p.foreach(record => TempusPublisher.publishMSE(client, mqttTopic, toTempusData(record)))
+            TempusPublisher.disconnect(client)
           }
         }
       })
@@ -76,29 +85,55 @@ object ComputeMSE {
     var obj=ja.addObject()
     obj.put("ds", record.getOrElse("tempus.tsds", "0.00"))
     obj=obj.putObject("values")
+
+    if(TempusUtils.isEmpty(mnemonicName)){
+      mnemonicName = "CALC_MSE"
+    }
     val key=record.getOrElse(mnemonicName, "CALC_MSE")
     var mseValue : Double = 0.0
     var keyValue = record.getOrElse(key, "")
 
-    if(!keyValue.isEmpty)
-      mseValue = keyValue.toDouble
+    try{
+      if(!keyValue.isEmpty)
+        mseValue = keyValue.toDouble
+    }catch{
+      case  exp : Exception => exp.printStackTrace()
+        log.error(" keyValue==> "+keyValue +" mseValue==> "+mseValue)
+    }
+
 
     obj.put(key, mseValue)
-    TempusUtils.INFO(s"Publishing: ${mapper.writeValueAsString(json)}")
+    log.info(s"Publishing: ${mapper.writeValueAsString(json)}")
     mapper.writeValueAsString(json)
   }
 
   def computeMSE(record: Map[String, String]): Map[String, String]={
     var mseKey :String = ""
     try{
+      if(TempusUtils.isEmpty(torKey)){
+        torKey = "TOR"
+      }
+      if(TempusUtils.isEmpty(rpmKey)){
+        rpmKey = "RPM"
+      }
+      if(TempusUtils.isEmpty(ropKey)){
+        ropKey = "ROP"
+      }
+      if(TempusUtils.isEmpty(wobKey)){
+        wobKey = "WOB"
+      }
+      if(TempusUtils.isEmpty(mnemonicName)){
+        mnemonicName = "CALC_MSE"
+      }
+
       val tor: Double = record.getOrElse(torKey, -9999).toString.toDouble
       val rpm: Double = record.getOrElse(rpmKey, -9999).toString.toDouble
       val rop: Double = record.getOrElse(ropKey, -9999).toString.toDouble
       val wob: Double = record.getOrElse(wobKey, -9999).toString.toDouble
       val defaultDia :String = "diameter"
-      var logName: String = record.getOrElse("LogName", "")
-      logName = logName.replaceAll(" ","")
-      val diaLogName: String = defaultDia+logName
+      val logName: String = record.getOrElse("LogName", "")
+      var logNameNoSpace = logName.replaceAll(" ","")
+      val diaLogName: String = defaultDia+logNameNoSpace
       var dia: Double = record.getOrElse(diaLogName, -9999).toString.toDouble
 
      if(dia == -9999)
@@ -119,15 +154,17 @@ object ComputeMSE {
         val axialEnergy = (4 * wob) / (diaSquare * scala.math.Pi)
 
         val mse: String = String.valueOf(centEnergy + axialEnergy)
+
         record + ("CALC_MSE"->mseKey) + (mseKey -> mse)
       }
     }catch{
       case  exp : Exception => exp.printStackTrace()
+        log.error(" Exception while calculating "+exp.printStackTrace())
        // record + ("CALC_MSE"->mseKey) + (mseKey -> "0")
       null
     }
   }
-  def isValidRecord(record: Map[String, Object]): Boolean = {
+  def   isValidRecord(record: Map[String, Object]): Boolean = {
     if (record == null || record.size == 0)
       return false
 

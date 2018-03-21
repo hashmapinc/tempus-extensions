@@ -46,8 +46,10 @@ object PutDepthLog {
           rdd
       }.map(_.value())
       .filter(_.length>0)                     //Ignore empty lines
-      .map(TempusUtils.toMap(_)).filter(_.size>0)
-      .flatMap(toKuduDepthLog(_)).foreachRDD(rdd =>{
+      .map(TempusUtils.toMap(_))
+      .filter(_.size>0)
+      .flatMap(toKuduDepthLog(_))
+      .foreachRDD(rdd =>{
       TempusUtils.INFO("before Depthlog upserting")
 
       rdd.toDF().write.options(Map("kudu.table" -> kuduTableName,"kudu.master" -> kuduUrl)).mode("append").kudu

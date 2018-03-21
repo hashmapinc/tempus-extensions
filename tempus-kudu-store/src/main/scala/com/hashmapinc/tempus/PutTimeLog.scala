@@ -38,7 +38,7 @@ object PutTimeLog {
     import spark.implicits._
     val stream = KafkaService.readKafka(kafkaUrl, topics, impalaKuduUrl,kuduUser,kuduPassword, groupId, streamContext)
 
-    stream
+ stream
       .transform {
         rdd =>
           val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
@@ -49,13 +49,19 @@ object PutTimeLog {
           rdd
       }.map(_.value())
       .filter(_.length>0)                     //Ignore empty lines
-      .map(TempusUtils.toMap(_)).filter(_.size>0)
-      .flatMap(toKuduTimeLog(_)).foreachRDD(rdd =>{
+      .map(TempusUtils.toMap(_))
+      .filter(_.size>0)
+      .flatMap(toKuduTimeLog(_))
+
+    .foreachRDD(rdd =>
+      {
       TempusUtils.INFO("before Timelog upserting")
 
       rdd.toDF().write.options(Map("kudu.table" -> kuduTableName,"kudu.master" -> kuduUrl)).mode("append").kudu
       TempusUtils.INFO("after Timelog upserting")
-    })
+    }
+
+    )
 
     streamContext.start()
     streamContext.awaitTermination()
