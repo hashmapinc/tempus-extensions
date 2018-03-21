@@ -524,13 +524,6 @@ public class DatabaseService {
 
   public int deleteCompactedURIs(List<Long> compactedURIs, long startTs, long endTs)
       throws SQLException {
-    try {
-      Thread.sleep(50000);
-      throw new SQLException("Timeout simulation");
-    } catch (InterruptedException e) {
-      log.info("Exception caught while sleeping in thread");
-      e.printStackTrace();
-    }
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
     }
@@ -585,7 +578,7 @@ public class DatabaseService {
     int numRowsDeleted = deleteTagDataStmt.executeUpdate();
     if (log.isDebugEnabled()) {
       log.debug("Deleted [" + numRowsDeleted + "] Tag Data records for ["
-          + delURIsSize + "] tags in " + (System.currentTimeMillis() - start) + "ms.");
+              + delURIsSize + "] tags [" + compactedURIs.toString() + "] in " + (System.currentTimeMillis() - start) + " ms.");
     }
     return numRowsDeleted;
   }

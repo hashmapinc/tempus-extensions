@@ -74,6 +74,10 @@ public class CompactionClient implements AsyncInterface{
 
   /** default amount of time between connection retries */
   private static final long DEFAULT_RETRY_MILLIS = 2000L;
+  private static final int DEFAULT_NUM_THREADS = 16;
+  private static final int DEFAULT_COMPACTION_PARTITIONS = 32;
+  private static final int DEFAULT_DELETE_PARTITIONS = 50;
+  private static final long DEFAULT_PHOENIX_QUERY_TIMEOUT_MS = 60000;
 
   private long retryMillis = DEFAULT_RETRY_MILLIS;
 
@@ -83,15 +87,13 @@ public class CompactionClient implements AsyncInterface{
   //TODO
   private static Table table = null;
   private static Connection conn = null;
+  private static long phoenixQueryTimeOutMs = DEFAULT_PHOENIX_QUERY_TIMEOUT_MS;
 
   private static Integer compactionWindowTimeInSecs;
   private static long upsertBatchSize;
 
   private static long numUnCompactedMilliSecs;
-  //TODO
-  private static int DEFAULT_NUM_THREADS = 20;
-  private static int DEFAULT_COMPACTION_PARTITION = 32;
-  private static int DEFAULT_DELETE_PARTITION = 50;
+
 
   /**
    * @return the numUnCompactedMilliSecs
@@ -103,47 +105,19 @@ public class CompactionClient implements AsyncInterface{
   /**
    * @return the upsertBatchSize
    */
-  public long getUpsertBatchSize() {
-    return upsertBatchSize;
-  }
+  //*public long getUpsertBatchSize() {return upsertBatchSize;}
 
   /**
    * @param upsertBatchSize the upsertBatchSize to set
    */
-  public void setUpsertBatchSize(long upsertBatchSize) {
-    this.upsertBatchSize = upsertBatchSize;
-  }
+  //*public void setUpsertBatchSize(long upsertBatchSize) {this.upsertBatchSize = upsertBatchSize;}
 
-  /**
-   * @return the retryMillis
-   */
-  //* public long getRetryMillis() {return retryMillis;}
-
-  /**
-   * @param //retryMillis the retryMillis to set
-   */
-  //* public void setRetryMillis(long retryMillis) {this.retryMillis = retryMillis;}
-
-  public String getTableName() {
-    return tableName;
-  }
+  //*public String getTableName() {return tableName;}
 
   /**
    * @param tableName the tableName to set
    */
-  public void setTableName(String tableName) {
-    this.tableName = tableName;
-  }
-
-  /**
-   * @return the dbService
-   */
-  //* public DatabaseService getDbService() {return dbService;}
-
-  /**
-   * @param dbService the dbService to set
-   */
-  //* public void setDbService(DatabaseService dbService) {this.dbService = dbService;}
+  //*public void setTableName(String tableName) {this.tableName = tableName;}
 
   /**
    * @return the hbaseZookeeperUrl
@@ -169,13 +143,13 @@ public class CompactionClient implements AsyncInterface{
     Configuration conf = HBaseConfiguration.create();
     conn = ConnectionFactory.createConnection(conf);
     table = conn.getTable(TableName.valueOf(tableName.toUpperCase()));
+    phoenixQueryTimeOutMs = conf.getLong("phoenix.query.timeoutMs", DEFAULT_PHOENIX_QUERY_TIMEOUT_MS);
   }
 
   private static void releaseHBaseConn() throws IOException {
     table.close();
     conn.close();
   }
-
 
   /**
    * @return the compactionWindowTimeInMins
@@ -187,13 +161,9 @@ public class CompactionClient implements AsyncInterface{
   /**
    * @param compactionWindowTimeInMins the compactionWindowTimeInMins to set
    */
-  public void setCompactionWindowTimeInSecs(String compactionWindowTimeInMins) {
-    this.compactionWindowTimeInSecs = Integer.parseInt(compactionWindowTimeInMins);
-  }
+  //*public void setCompactionWindowTimeInSecs(String compactionWindowTimeInMins) {this.compactionWindowTimeInSecs = Integer.parseInt(compactionWindowTimeInMins);}
 
-  public long getCompactionWindowTimeInMillis() {
-    return (this.compactionWindowTimeInSecs * ONE_SEC_IN_MILLIS);
-  }
+  //*public long getCompactionWindowTimeInMillis() {return (this.compactionWindowTimeInSecs * ONE_SEC_IN_MILLIS);}
 
   private static final void usage(Options CMD_LINE_OPTS) {
 
@@ -205,11 +175,6 @@ public class CompactionClient implements AsyncInterface{
     h.printOptions(p, HelpFormatter.DEFAULT_WIDTH, CMD_LINE_OPTS,
       HelpFormatter.DEFAULT_LEFT_PAD, HelpFormatter.DEFAULT_DESC_PAD);
     p.flush();
-  }
-
-  private static Options getOptions(){
-
-    return CMD_LINE_OPTS;
   }
 
   private static CommandLine readCommandLineArgs(String[] args, Options options){
@@ -304,16 +269,6 @@ public class CompactionClient implements AsyncInterface{
     }
   }
 
-
-  private static void initCompaction() {
-    try {
-      CompactionClient.initHBaseConnection();
-      log.info("HBase Connection success");
-    }  catch (IOException e) {
-      throw new RuntimeException("IOException: " + e.getMessage());
-    }
-  }
-
   private static Boolean deletePidFile(CommandLine commandLine) {
     String pidFile = Utils.getValueFromArgs(commandLine, PID_FILE_LONG_OPTION, PID_FILE_SHORT_OPTION);
     Boolean performPidCheck = (pidFile == null) ? false : true;
@@ -328,6 +283,26 @@ public class CompactionClient implements AsyncInterface{
       }
     }
     return false;
+  }
+
+  private static long deleteCompactedUris(Executor executor, final DatabaseService dbService, final
+  long startTs, final long endTs, final List<Long> urisToBeDeleted, int partitionSizeForDeletes, long phoenixQueryTimeOutMs)
+          throws ExecutionException, InterruptedException {
+    List<List<Long>> deleteList = Lists.partition(urisToBeDeleted, partitionSizeForDeletes);
+    log.info("deleteList size: " + deleteList.size());
+
+    //Block here for timeout of phoenixQueryTimeOutMs * the number of batch deletes
+    final long waitTimeMinsDeletion = (((phoenixQueryTimeOutMs * deleteList.size()) +ONE_SEC_IN_MILLIS) / 1000) / 60;
+    log.info("Deletion Wait Time: " + waitTimeMinsDeletion + " mins");
+    CompletableFuture<List<Long>> futureRecordsDeletedForCompactedPts = AsyncInterface.deleteCompactedRecords(executor, deleteList, dbService, startTs, endTs);
+    List<Long> listDeletedRecords = null;
+    try {
+      listDeletedRecords = futureRecordsDeletedForCompactedPts.get(waitTimeMinsDeletion, TimeUnit.MINUTES);
+    } catch (TimeoutException e) {
+      log.info("Got TimeoutException exception: " + e.getMessage());
+      return -1;
+    }
+    return listDeletedRecords.stream().mapToLong(deletedRecords -> deletedRecords).sum();
   }
 
   public static void main(String[] args) throws ConfigurationException {
@@ -363,6 +338,7 @@ public class CompactionClient implements AsyncInterface{
       throw new RuntimeException("Exception while loading properties.");
 
     loadCompactionProperties(commandLine, properties);
+
     loadDbProperties(commandLine, properties);
 
 
@@ -370,12 +346,13 @@ public class CompactionClient implements AsyncInterface{
     if(dbService == null)
       throw new RuntimeException("Exception in intializing DB service: dbService is null");
 
-      final int numThreads = Integer.valueOf(Utils.readProperty(properties, "numthreads",String.valueOf(DEFAULT_NUM_THREADS)));
-      final ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    final int numThreads = Integer.valueOf(Utils.readProperty(properties, "numthreads",String.valueOf(DEFAULT_NUM_THREADS)));
+    final ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 
-      final int partitionSizeForCompaction = Integer.valueOf(Utils.readProperty(properties,
-              "compaction.partition", String.valueOf(DEFAULT_COMPACTION_PARTITION)));
-      int partitionSizeForDeletes = Integer.valueOf(Utils.readProperty(properties, "compaction.deletes.batchsize", String.valueOf(DEFAULT_DELETE_PARTITION)));
+    final int partitionSizeForCompaction = Integer.valueOf(Utils.readProperty(properties,
+            "compaction.partition", String.valueOf(DEFAULT_COMPACTION_PARTITIONS)));
+    int partitionSizeForDeletes = Integer.valueOf(Utils.readProperty(properties, "compaction" +
+            ".deletes.batchsize", String.valueOf(DEFAULT_DELETE_PARTITIONS)));
 
     try {
       CompactionClient.initHBaseConnection();
@@ -388,7 +365,7 @@ public class CompactionClient implements AsyncInterface{
       //Start Time will be always be passed as 0.
       long startTs = 0;
       // If there is an endTs configured in properties file we will only compact till currenttime-(configured TS)
-      long compactionEndTs = CompactionClient.getCompactionEndTsMillis();//numUnCompactedMilliSecs;
+      long compactionEndTs = CompactionClient.getCompactionEndTsMillis();
       long endTs = (compactionEndTs > 0) ? (compactionClientStartTime - compactionEndTs) : compactionClientStartTime;
 
       startTimeForFetchMinMaxTsCompactAndUpsert = System.currentTimeMillis();
@@ -438,26 +415,22 @@ public class CompactionClient implements AsyncInterface{
       if(numUrisToBeDeleted > 0){
         int retry_count = 0;
         int reduce_factor = 10;
-        int partitionSize = partitionSizeForDeletes;
-        while((totalTdRecordsDeleted <= 0) && (reduce_factor != 1)) {
+        int partitionSize = (int) Math.min(partitionSizeForDeletes, numUrisToBeDeleted);
+        while((totalTdRecordsDeleted <= 0) && (partitionSize != 0)) {
           totalTdRecordsDeleted = deleteCompactedUris(executor, dbService, startTs, endTs,
-                  urisToBeDeleted, partitionSize);
-          log.info("totalTdRecordsDeleted: " + totalTdRecordsDeleted);
-          retry_count += 1;
-          reduce_factor = 10 - retry_count;
-          log.info("retry_count [" + retry_count + "]; reduce_factor[" + reduce_factor + "];");
-          partitionSize = partitionSizeForDeletes/reduce_factor;
-          log.info("Recalculated partitionSize: " + partitionSize);
+                  urisToBeDeleted, partitionSize, phoenixQueryTimeOutMs);
+          partitionSize = (int)Math.ceil(partitionSize/2);
+          log.info("totalTdRecordsDeleted: " + totalTdRecordsDeleted + "; Recalculated partitionSize: " + partitionSize);
         }
       }
       stopTimeForBatchDeletes = System.currentTimeMillis();
 
-
       CompactionClient.releaseHBaseConn();
+
       log.info("Calling executor shutdown....");
       executor.shutdown();
       // Wait 10 mins max for any running tasks to complete
-      log.info("Waiting termination of executor with timeout of 10 mins....");
+      log.info("Waiting termination of executor....");
       executor.awaitTermination(5, TimeUnit.MINUTES);
     } catch (IOException e) {
       // HBase Exception
@@ -491,35 +464,4 @@ public class CompactionClient implements AsyncInterface{
     log.info("Total Time Taken: " +  (System.currentTimeMillis() - compactionClientStartTime) + " ms");
   }
 
-  private static long deleteCompactedUris(Executor executor, final DatabaseService dbService, final
-  long startTs, final long endTs, final List<Long> urisToBeDeleted, int partitionSizeForDeletes) throws ExecutionException, InterruptedException {
-    List<List<Long>> deleteList = Lists.partition(urisToBeDeleted, partitionSizeForDeletes);
-    log.info("deleteList size: " + deleteList.size());
-    //pointTagsToBeDeleted.clear();
-    log.info("deleteList size: " + deleteList.size());
-    //log.info("pointTagsToBeDeleted: " + ptsAsString);
-
-    //TODO
-    long phoenixQueryTimeOutMs = 60000;//
-    final long waitTimeMinsDeletion = (((phoenixQueryTimeOutMs * deleteList.size())
-            +ONE_SEC_IN_MILLIS) / 1000) / 60;
-    log.info("Deletion Wait Time: " + waitTimeMinsDeletion + "(10 secs) mins");
-
-
-    CompletableFuture<List<Long>> futureRecordsDeletedForCompactedPts = AsyncInterface.deleteCompactedRecords(executor, deleteList, dbService, startTs, endTs);
-    //Block here for timeout of phoenixQueryTimeOutMs * the number of batch deletes
-    List<Long> listDeletedRecords = null;
-    try {
-      listDeletedRecords = futureRecordsDeletedForCompactedPts.get(2, TimeUnit.SECONDS);
-    } catch (TimeoutException e) {
-      //TODO
-      // if we can findout for which list timeout has occured. try to delete each uri
-      // Again do a try/catch weith timeout anf if still a timeout occurs, write the delete
-      // queries in a log file so that they can be manually deleted. How to notify about such
-      // failures ?
-      log.info("Got TimeoutException exception: " + e.getMessage());
-      return -1;
-    }
-    return listDeletedRecords.stream().mapToLong(deletedRecords -> deletedRecords).sum();
-  }
 }

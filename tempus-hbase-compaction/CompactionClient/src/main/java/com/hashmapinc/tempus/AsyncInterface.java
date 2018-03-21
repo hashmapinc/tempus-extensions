@@ -230,8 +230,8 @@ public interface AsyncInterface {
             String logWindowEndTs = new Timestamp(windowEndTs).toString();
             log.debug("Creating compaction request for uri [" + uri + "]; time window[" +
                     logWindowStartTs + " - " + logWindowEndTs + "];");
-            final byte[] startKey = Utils.createScanStartRow(uri, windowStartTs);
-            final byte[] endKey = Utils.createScanStopRow(uri, windowEndTs);
+            final byte[] startKey = Utils.createPhoenixRow(uri, windowStartTs);// createScanStartRow(uri, windowStartTs);
+            final byte[] endKey = Utils.createPhoenixRow(uri, windowEndTs); //createScanStopRow(uri, windowEndTs);
             final CompactionRequest rpcRequest = createRpcRequest(uri, windowStartTs, windowEndTs, dataType);
             rpcCallsList.add(new RpcCalls(startKey, endKey, rpcRequest));
             ++numRequests;
@@ -397,8 +397,11 @@ public interface AsyncInterface {
     }
 
     static CompletableFuture<Long> deleteCompactedPointTags(Executor executor, final List<Long> uris, final DatabaseService dbs, final long startTs, final long endTs) {
-        log.info("Calling Deletes on list size of " + uris.size());
-        log.info("Calling deletes on URI's: " + uris.toString());
+
+        if(log.isDebugEnabled()) {
+            log.info("Calling Deletes on list size of " + uris.size());
+            log.info("Calling deletes on URI's: " + uris.toString());
+        }
         CompletableFuture<Long> future = CompletableFuture.supplyAsync(() -> {
             synchronized (dbs) {
                 long deletedRecords = 0;
