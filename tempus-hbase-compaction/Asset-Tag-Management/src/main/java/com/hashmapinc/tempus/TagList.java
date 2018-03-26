@@ -1,6 +1,8 @@
 package com.hashmapinc.tempus;
 
-public class TagList {
+import java.io.Serializable;
+
+public class TagList implements Serializable {
 
   //This is the URI field in TagData
   private long id;    

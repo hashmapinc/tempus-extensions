@@ -2,9 +2,11 @@ package com.hashmapinc.tempus;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.Serializable;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,10 +34,15 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.log4j.Logger;
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 
 import com.google.common.collect.Lists;
 
-public class CompactionClient implements AsyncInterface{
+import jdk.nashorn.internal.ir.annotations.Ignore;
+
+public class CompactionClient implements AsyncInterface, Serializable {
 
   private static final Logger log = Logger.getLogger(CompactionClient.class);
 
@@ -158,6 +165,7 @@ public class CompactionClient implements AsyncInterface{
     return compactionWindowTimeInSecs;
   }
 
+  @Ignore
   /**
    * @param compactionWindowTimeInMins the compactionWindowTimeInMins to set
    */
@@ -389,10 +397,84 @@ public class CompactionClient implements AsyncInterface{
       List<List<Map<Long, Long[]>>> allValues =  allValuesFutures.get();
       stopTimeForFetchMinMaxTsCompactAndUpsert = System.currentTimeMillis();
 
+      //Using RDD's
+      final String appName = CompactionClient.class.getName();
+      final String master = "local[4]";
+      SparkConf conf = new SparkConf().setAppName(appName).setMaster(master);
+      JavaSparkContext sc = new JavaSparkContext(conf);
+      //
+      List<TagList> tagsForCompaction = AsyncInterface.getCompactionTagList(executor, dbService).get();
+      List<List<TagList>> partitionedTagListForCompaction = Lists.partition(tagsForCompaction, partitionSizeForCompaction);
+      //Making it as ArrayList as sublist is not Serializable
+      List<ArrayList<TagList>> al = new ArrayList<ArrayList<TagList>>();
+      for(List<TagList> ptl : partitionedTagListForCompaction){
+        ArrayList<TagList> atl = new ArrayList<TagList>(ptl);
+        al.add(atl);
+      }
+      JavaRDD<ArrayList<TagList>> rddForCompaction = sc.parallelize(al);
+
+      JavaRDD<Map<Long, Long[]>> returnedData = rddForCompaction.mapPartitions(iter -> {
+                List<Map<Long, Long[]>> rtl = new ArrayList<Map<Long, Long[]>>();
+                final ExecutorService partitionedExecutor = Executors.newFixedThreadPool(numThreads);
+                while(iter.hasNext()) {
+                  ArrayList<TagList> uris = iter.next();
+                  log.info("Tag List: " + uris.toString());
+                  Map<Long, String> uriDataTypeMap = uris.stream().collect(Collectors.toMap(TagList::getId, TagList::getDataType));
+
+                  log.info("Calling getMinMaxTs & compactAndUpsert for uris ");
+                  log.info("URI's: " + (uris.stream().map(tl -> tl.getId()).collect(Collectors.toList())).toString());
+                  CompletableFuture<List<TagData>> allMinMaxTs = AsyncInterface.getMinMaxTs(partitionedExecutor, uris, dbService);
+
+                  CompletableFuture<List<Map<Long, Long[]>>> allStats = allMinMaxTs
+                          .thenComposeAsync((List<TagData> listTagData) -> {
+                    listTagData = listTagData.stream()
+                            .filter(Objects::nonNull)
+                            .filter(pointTag -> pointTag.getUri() != 0)
+                            .filter(pointTag -> pointTag.getMinTs() != null)
+                            .filter(pointTag -> pointTag.getMaxTs() != null)
+                            .collect(Collectors.toList());
+
+                    List<CompletableFuture<Map<Long, Long[]>>> futureCptdList = new ArrayList<>();
+
+                    for (TagData td : listTagData) {
+                      futureCptdList.add(AsyncInterface.compactAndUpsert(partitionedExecutor, td, dbService, startTs, endTs, compactionWindowTimeInSecs, table, uriDataTypeMap.get(td.getUri())));
+                    }
+
+                    return CompletableFuture.allOf(futureCptdList.toArray(new
+                            CompletableFuture[futureCptdList.size()]))
+                            .thenApply(q -> {
+                              return futureCptdList.stream()
+                                      .map(eachFuture -> eachFuture.join())
+                                      .collect(Collectors.toList());
+                            });
+                  }, partitionedExecutor);
+                  List<Map<Long, Long[]>> retValues = allStats.get();
+                  rtl.addAll(retValues);
+
+                }
+                return rtl;
+              });
+      returnedData.foreach(mapUriRecords -> {
+        mapUriRecords.forEach((key, value) -> {
+          long deleteUri = key;
+          long uriCompactedRecords = value[0];
+          long uriUpsertedRecords = value[1];
+          log.info("URI [" + deleteUri + "]; Compacted: [" + uriCompactedRecords + "]; Upserted: ["
+                  + uriUpsertedRecords + "];");
+        });
+
+      });
+
+      // Each executor will do the foll
+      // for each List of Tags to be compacted
+      // Call our Async methods and compact URI's
+      // Return a RDD of Tuples -> URI, compactedRecords, upsertedRecords
+      // Send this RDD further for Deletes
+
+
 
       List<Long> urisToBeDeleted = new ArrayList<>();
       long numUrisToBeDeleted = 0;
-
       for( List<Map<Long, Long[]>> allDeletes : allValues){
         for (Map<Long, Long[]> compactedStatsMap : allDeletes) {
           long deleteUri = compactedStatsMap.keySet().stream().findFirst().get();
@@ -409,8 +491,10 @@ public class CompactionClient implements AsyncInterface{
         }
       }
 
-      log.info("urisToBeDeleted size: " + numUrisToBeDeleted);
 
+      log.info("urisToBeDeleted size: " + numUrisToBeDeleted);
+      numUrisToBeDeleted = 0;
+      log.info("urisToBeDeleted size: " + numUrisToBeDeleted);
       startTimeForBatchDeletes = System.currentTimeMillis();
       if(numUrisToBeDeleted > 0){
         int retry_count = 0;

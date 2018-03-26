@@ -17,6 +17,9 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.log4j.Logger;
+import org.apache.phoenix.schema.types.PDate;
+import org.apache.phoenix.schema.types.PInteger;
+import org.apache.phoenix.schema.types.PLong;
 
 public class Utils {
   final static Logger log = Logger.getLogger(Utils.class);
@@ -235,6 +238,15 @@ public class Utils {
 
   public static byte[] createScanStopRow(long stopURI, long origStopTs) {
     return createScanRow(stopURI, origStopTs, null);
+  }
+
+  public static byte[] createPhoenixRow(long uri, long ts){
+    //Phoenix
+    byte[] phoenixUri = PLong.INSTANCE.toBytes(uri);
+    byte[] phoenixTs = PLong.INSTANCE.toBytes(ts);
+    byte[] retRow = Bytes.add(phoenixUri, phoenixTs);
+    return retRow;
+
   }
 
   //For String URI's

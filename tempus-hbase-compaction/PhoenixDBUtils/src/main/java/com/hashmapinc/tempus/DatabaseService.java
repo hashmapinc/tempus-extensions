@@ -1,5 +1,6 @@
 package com.hashmapinc.tempus;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.DriverManager;
@@ -29,7 +30,7 @@ import com.hashmapinc.tempus.TagData;
 import com.hashmapinc.tempus.TagDataCompressed;
 import com.hashmapinc.tempus.Utils;
 
-public class DatabaseService {
+public class DatabaseService implements Serializable {
 
   private transient static Logger log = Logger.getLogger(DatabaseService.class);
 
