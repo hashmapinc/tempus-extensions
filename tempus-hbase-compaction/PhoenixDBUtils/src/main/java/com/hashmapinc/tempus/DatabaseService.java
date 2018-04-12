@@ -1,5 +1,8 @@
 package com.hashmapinc.tempus;
 
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.log4j.Logger;
+
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.Date;
@@ -11,43 +14,17 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.TimeZone;
-
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.log4j.Logger;
-/*import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.SQLContext;
-import org.apache.spark.sql.SaveMode;
-*/
-//import com.hashmapinc.tempus.FacilityCompactionStatus;
-import com.hashmapinc.tempus.TagData;
-import com.hashmapinc.tempus.TagDataCompressed;
-import com.hashmapinc.tempus.Utils;
 
 public class DatabaseService implements Serializable {
 
   private transient static Logger log = Logger.getLogger(DatabaseService.class);
 
-  private static Integer EPOCH_START_TIME = 18000;
-
   private static Connection dbConnection;
-  //private transient PreparedStatement queryAssetDataStatusStmt;
-  //private transient PreparedStatement queryDistinctTagDataStmt;
-  //private transient PreparedStatement queryDistinctTagListStmt;
-  //private transient PreparedStatement queryMinMaxTagDataStmt;
-  //private transient PreparedStatement queryTagDataDataTypeStmt;
-
-  //private transient PreparedStatement upsertTagDataCompressedStmt;
-  //private transient PreparedStatement deleteTagDataStmt;
   private transient PreparedStatement upsertCompactionStatusStmt;
   private transient PreparedStatement upsertTduStmt;
-  
+
   private static String tagListTable;
   private static String tagDataTable;
   private static String compactionTable;
@@ -109,7 +86,7 @@ public class DatabaseService implements Serializable {
     }
     DatabaseService.compactionTable = compactionTable.toLowerCase();
   }
-  
+
   /**
    * @return the compactionStatusTable
    */
@@ -142,7 +119,7 @@ public class DatabaseService implements Serializable {
       throw new IllegalArgumentException("jdbcUrl");
     }
     DatabaseService.phoenixJdbcUrl =
-        jdbcUrl.startsWith("jdbc:phoenix:") ? jdbcUrl : ("jdbc:phoenix:" + jdbcUrl);
+            jdbcUrl.startsWith("jdbc:phoenix:") ? jdbcUrl : ("jdbc:phoenix:" + jdbcUrl);
   }
 
   /**
@@ -188,7 +165,7 @@ public class DatabaseService implements Serializable {
     dbConnection.setAutoCommit(true);
 
     if (log.isDebugEnabled()) {
-      log.debug("Opened connection to: " + jdbcUrl);
+      log.debug("Opened connection to: " + jdbcUrl + " Object:" + dbConnection);
     }
   }
 
@@ -225,12 +202,12 @@ public class DatabaseService implements Serializable {
     String hbaseZookeeperUrl = System.getenv("PHOENIX_CONN_PARAM");
     if ((null == hbaseZookeeperUrl) || (0 == hbaseZookeeperUrl.length())) {
       throw new ConfigurationException(
-          "Please set PHOENIX_CONN_PARAM environment variable with value as Zookeeper Quorum");
+              "Please set PHOENIX_CONN_PARAM environment variable with value as Zookeeper Quorum");
     }
     this.hbaseZookeeperUrl = hbaseZookeeperUrl;
     DatabaseService.setPhoenixJdbcUrl(hbaseZookeeperUrl);
   }
-  
+
   /**
    * @param hbaseZookeeperUrl
    * @throws ConfigurationException
@@ -241,12 +218,6 @@ public class DatabaseService implements Serializable {
   }
 
   protected void clearPreparedStatements() {
-    //queryAssetDataStatusStmt = null;
-    //queryDistinctTagListStmt = null;
-    //queryDistinctTagDataStmt = null;
-    //queryMinMaxTagDataStmt = null;
-    //upsertTagDataCompressedStmt = null;
-    //deleteTagDataStmt = null;
     upsertCompactionStatusStmt = null;
     upsertTduStmt = null;
   }
@@ -270,20 +241,15 @@ public class DatabaseService implements Serializable {
     }
     return null;
   }
-  
+
   public List<TagList> queryTagList() throws SQLException {
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
     }
 
     PreparedStatement queryDistinctTagListStmt = null;
-    //if (queryDistinctTagListStmt == null) {
-      queryDistinctTagListStmt = getDbConnection().prepareStatement("SELECT id, datatype from "
-          + tagListTable + " where status != 0 ");
-    //} else {
-      //queryDistinctTagListStmt.clearParameters();
-    //}
-
+    queryDistinctTagListStmt = getDbConnection().prepareStatement("SELECT id, datatype from "
+            + tagListTable + " where status != 0 ");
     List<TagList> uris = new ArrayList<TagList>();
     long start = System.currentTimeMillis();
     ResultSet results = queryDistinctTagListStmt.executeQuery();
@@ -300,81 +266,19 @@ public class DatabaseService implements Serializable {
 
     if (log.isDebugEnabled()) {
       log.debug("Queried distinct URI : " + uris.size() + " records in "
-          + (System.currentTimeMillis() - start) + "ms.");
+              + (System.currentTimeMillis() - start) + "ms.");
     }
     return uris;
   }
-  /*
-  public List<Integer> getDistinctURI(int numRetries, long retryAfterMillis, long startTs,
-      long endTs) {
-    for (int i = 0; i < numRetries; i++) {
-      try {
-        List<Integer> uris = queryTagData(startTs, endTs);
-        return uris;
-      } catch (Exception e) {
-        log.error("Error getting asset list: ", e);
-      }
 
-      try {
-        log.info("Retrying in: " + (retryAfterMillis * (i + 1)) + "ms.");
-        Thread.sleep(retryAfterMillis * (i + 1));
-      } catch (InterruptedException e) {
-        log.error("Interrupted retrying: ", e);
-        return null;
-      }
-    }
-    return null;
-  }
-
-  public List<Integer> queryTagData(long startTs, long endTs) throws SQLException {
-    if (!hasConnection()) {
-      throw new IllegalStateException("no connection");
-    }
-
-    PreparedStatement queryDistinctTagDataStmt = null;
-    if (queryDistinctTagDataStmt == null) {
-      queryDistinctTagDataStmt = getDbConnection().prepareStatement("SELECT DISTINCT(id) from "
-          + tagDataTable + " where ts <= TO_TIMESTAMP(?) and ts >= TO_TIMESTAMP(?)");
-    } else {
-      queryDistinctTagDataStmt.clearParameters();
-    }
-
-    Timestamp startTime = new Timestamp(convertToUTC(startTs));
-    Timestamp endTime = new Timestamp(convertToUTC(endTs));
-
-    queryDistinctTagDataStmt.setString(1, endTime.toString());
-    queryDistinctTagDataStmt.setString(2, startTime.toString());
-    log.info("startTime:- " + startTime.toString() + "; endTime:- " + endTime.toString());
-    List<Integer> uris = new ArrayList<Integer>();
-    long start = System.currentTimeMillis();
-    ResultSet results = queryDistinctTagDataStmt.executeQuery();
-
-    while (results.next()) {
-      uris.add(results.getInt(1));
-      if (log.isTraceEnabled()) {
-        log.trace("TagData: " + results.getString(1));
-      }
-    }
-
-    if (log.isDebugEnabled()) {
-      log.debug("Queried distinct URI : " + uris.size() + " records in "
-          + (System.currentTimeMillis() - start) + "ms.");
-    }
-    return uris;
-  }
-*/
   public TagData getMinMaxTs(long uri) throws SQLException {
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
     }
 
     PreparedStatement queryMinMaxTagDataStmt = null;
-    //if (queryMinMaxTagDataStmt == null) {
-      queryMinMaxTagDataStmt = getDbConnection()
-          .prepareStatement("SELECT MIN(ts), MAX(ts) FROM " + tagDataTable + " where id = ?");
-    //} else {
-      //queryMinMaxTagDataStmt.clearParameters();
-    //}
+    queryMinMaxTagDataStmt = getDbConnection()
+            .prepareStatement("SELECT MIN(ts), MAX(ts) FROM " + tagDataTable + " where id = ?");
 
     long start = System.currentTimeMillis();
     queryMinMaxTagDataStmt.setLong(1, uri);
@@ -390,43 +294,33 @@ public class DatabaseService implements Serializable {
 
     if (log.isDebugEnabled()) {
       log.debug(
-        "Queried min and max TS for uri: " + uri + " in " + (System.currentTimeMillis() - start) + " ms.");
+              "Queried min and max TS for uri: " + uri + " in " + (System.currentTimeMillis() - start) + " ms.");
     }
     return uriDetails;
   }
 
-  public int upsertCompactedRecords(List<TagDataCompressed> tdcList, Boolean jdbcUpserts)
-      throws Exception {
+  public int upsertCompactedRecords(List<TagDataCompressed> tdcList)
+          throws Exception {
     if (tdcList == null) {
       throw new IllegalArgumentException("tdcList");
     }
-
-    if (jdbcUpserts) {
-      return upsertCompactedPointTagsJdbc(tdcList);
-    } else {
-      return 0;//*writeTagDataCompressed(sparkContext.parallelize(tdcList));
-    }
-  }
-
-  public int upsertCompactedPointTagsJdbc(List<TagDataCompressed> compressedPointTags)
-      throws SQLException {
 
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
     }
 
     PreparedStatement upsertTagDataCompressedStmt = null;
-    //if (upsertTagDataCompressedStmt != null) upsertTagDataCompressedStmt.clearParameters();
+    if (upsertTagDataCompressedStmt != null) upsertTagDataCompressedStmt.clearParameters();
 
     dbConnection.setAutoCommit(false);
     int numRowsUpserted = 0;
     long start = System.currentTimeMillis();
-    for (TagDataCompressed tdc : compressedPointTags) {
+    for (TagDataCompressed tdc : tdcList) {
       if (tdc == null) {
         throw new IllegalArgumentException("tagDataCompressed");
       }
       upsertTagDataCompressedStmt = getDbConnection().prepareStatement("UPSERT INTO "
-          + compactionTable + " (id, stts, vb, q, ts, ns, upts) " + " VALUES(?, ?, ?, ?, ?, ?, ?)");
+              + compactionTable + " (id, stts, vb, q, ts, ns, upts) " + " VALUES(?, ?, ?, ?, ?, ?, ?)");
       upsertTagDataCompressedStmt.setLong(1, tdc.getId());
       upsertTagDataCompressedStmt.setDate(2, new Date(tdc.getStTs().getTime()));
       upsertTagDataCompressedStmt.setBytes(3, tdc.getVb());
@@ -440,91 +334,15 @@ public class DatabaseService implements Serializable {
     dbConnection.commit();
     if (log.isDebugEnabled()) {
       log.info("Upserted [" + numRowsUpserted + "] Tag Data Compacted records. Completed  in "
-          + (System.currentTimeMillis() - start) + "ms.");
+              + (System.currentTimeMillis() - start) + "ms.");
     }
     dbConnection.setAutoCommit(true);
     return numRowsUpserted;
-  }
 
-  //*
-  /*
-  private void writeTagDataCompressed(JavaRDD<TagDataCompressed> tagData) throws Exception {
-
-    if (tagData == null) {
-      throw new IllegalArgumentException("tagData");
-    }
-
-    tagData.cache();
-    DataFrame dataFrame = getSqlContext().createDataFrame(tagData, TagDataCompressed.class);
-    long start = System.currentTimeMillis();
-    dataFrame.write().format("org.apache.phoenix.spark").mode(SaveMode.Overwrite)
-        .options(createSparkOptions(compactionTable)).save();
-    //log.debug("DF Count " + dataFrame.count());
-    if (log.isDebugEnabled()) {
-      log.debug(
-        "TagDataCompressed DataFrame Write in: " + (System.currentTimeMillis() - start) + "ms. ");
-    }
-    tagData.unpersist();
-  }*/
-
-  //*
-  /*
-  public void writeTagDataCompressed(List<JavaRDD<TagDataCompressed>> tagDataList)
-      throws Exception {
-
-    if (tagDataList == null) {
-      throw new IllegalArgumentException("tagDataList");
-    }
-
-    log.debug("Calling DF upserts for list size  " + tagDataList.size());
-    JavaRDD<TagDataCompressed> compactedRDDs = null;
-    for (JavaRDD<TagDataCompressed> tdc : tagDataList) {
-      if (compactedRDDs == null) {
-        compactedRDDs = tdc;
-      } else {
-        compactedRDDs = compactedRDDs.union(tdc);
-      }
-    }
-    writeTagDataCompressed(compactedRDDs);
-  }*/
-
-  //*
-  /*
-  public void upsertCompactedPointTags(List<TagDataCompressed> compressedPointTags)
-      throws Exception {
-
-    log.debug("Calling DF upserts for list size  " + compressedPointTags.size());
-    JavaRDD<TagDataCompressed> compactedRDD = sparkContext.parallelize(compressedPointTags);
-    writeTagDataCompressed(compactedRDD);
-  }
-  */
-
-  public void upsertCompactionStatus(CompactionStatus compactionStatus)
-      throws SQLException {
-    if (!hasConnection()) {
-      throw new IllegalStateException("no connection");
-    }
-
-    if (upsertCompactionStatusStmt == null) {
-      upsertCompactionStatusStmt = getDbConnection().prepareStatement(
-        "UPSERT into " + compactionStatusTable + " (lcts, numcomp) values (?, ?)");
-    } else {
-      upsertCompactionStatusStmt.clearParameters();
-    }
-    long start = System.currentTimeMillis();
-    upsertCompactionStatusStmt.setDate(1,
-      new Date(compactionStatus.getLastCompactionTs().getTime()));
-    upsertCompactionStatusStmt.setLong(2, compactionStatus.getNumCompactedRecords());
-
-    upsertCompactionStatusStmt.executeUpdate();
-
-    if (log.isDebugEnabled()) {
-      log.debug("Upsert AssetDataStatus time: " + (System.currentTimeMillis() - start) + "ms.");
-    }
   }
 
   public int deleteCompactedURIs(List<Long> compactedURIs, long startTs, long endTs)
-      throws SQLException {
+          throws SQLException {
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
     }
@@ -533,28 +351,24 @@ public class DatabaseService implements Serializable {
       throw new IllegalArgumentException("tagDataCompressed");
     long start = System.currentTimeMillis();
 
-    // if (deleteTagDataStmt != null) deleteTagDataStmt.clearParameters();
     int delURIsSize = compactedURIs.size();
     if(delURIsSize == 0)
       return 0;
     PreparedStatement deleteTagDataStmt = null;
-    //if (deleteTagDataStmt == null) {
-      StringBuilder sql = new StringBuilder();
-      sql.append("DELETE FROM " + tagDataTable
-          + " WHERE ts >= TO_TIMESTAMP(?) AND ts <= TO_TIMESTAMP(?) AND id in (");
-      for (int i = 0; i < delURIsSize; i++) {
-        sql.append("?");
-        if (i + 1 < delURIsSize) {
-          sql.append(",");
-        }
+    StringBuilder sql = new StringBuilder();
+    sql.append("DELETE FROM " + tagDataTable
+            + " WHERE ts >= TO_TIMESTAMP(?) AND ts <= TO_TIMESTAMP(?) AND id in (");
+    for (int i = 0; i < delURIsSize; i++) {
+      sql.append("?");
+      if (i + 1 < delURIsSize) {
+        sql.append(",");
       }
-      sql.append(")");
-      deleteTagDataStmt = getDbConnection().prepareStatement(sql.toString());
-   // } //else {
-      //deleteTagDataStmt.clearParameters();
-    //}
+    }
+    sql.append(")");
+    deleteTagDataStmt = getDbConnection().prepareStatement(sql.toString());
 
     // convert to utc because startTs and endTs are in current time zone
+    Integer EPOCH_START_TIME = 18000;
     Timestamp delStartTime = new Timestamp(startTs == 0 ? convertToUTC(EPOCH_START_TIME) : convertToUTC(startTs));
     Timestamp delEndTime = new Timestamp(convertToUTC(endTs));
 
@@ -616,12 +430,8 @@ public class DatabaseService implements Serializable {
     }
 
     PreparedStatement queryTagDataDataTypeStmt = null;
-    //if (queryTagDataDataTypeStmt == null) {
-      queryTagDataDataTypeStmt = getDbConnection()
-          .prepareStatement("SELECT datatype FROM " + tagListTable + " where id = ?");
-    //} else {
-      //queryTagDataDataTypeStmt.clearParameters();
-    //}
+    queryTagDataDataTypeStmt = getDbConnection()
+            .prepareStatement("SELECT datatype FROM " + tagListTable + " where id = ?");
 
     long start = System.currentTimeMillis();
     queryTagDataDataTypeStmt.setLong(1, uri);
@@ -659,7 +469,7 @@ public class DatabaseService implements Serializable {
     }
     stmt = dbConnection.createStatement();
     stmt.executeUpdate("CREATE TABLE " + uncompactedTable
-        + " (id BIGINT NOT NULL, ts DATE NOT NULL, vl BIGINT, vd DOUBLE, vs VARCHAR, q SMALLINT CONSTRAINT pk PRIMARY KEY (id, ts ROW_TIMESTAMP)) COMPRESSION = 'SNAPPY'");
+            + " (id BIGINT NOT NULL, ts DATE NOT NULL, vl BIGINT, vd DOUBLE, vs VARCHAR, q SMALLINT CONSTRAINT pk PRIMARY KEY (id, ts ROW_TIMESTAMP)) COMPRESSION = 'SNAPPY'");
   }
 
   public void upsertUncompactedData(String tableName, List<TagData> tduList) throws SQLException {
@@ -682,7 +492,7 @@ public class DatabaseService implements Serializable {
         throw new IllegalArgumentException("td");
       }
       upsertTduStmt = getDbConnection().prepareStatement(
-        "UPSERT INTO " + tableName + " (id, ts, vl, vd, vs, q) " + " VALUES(?, ?, ?, ?, ?, ?)");
+              "UPSERT INTO " + tableName + " (id, ts, vl, vd, vs, q) " + " VALUES(?, ?, ?, ?, ?, ?)");
       upsertTduStmt.setLong(1, td.getUri());
       upsertTduStmt.setDate(2, new Date(td.getTs().getTime()));
       upsertTduStmt.setLong(3, td.getVl());
@@ -695,9 +505,8 @@ public class DatabaseService implements Serializable {
     dbConnection.commit();
     if (log.isDebugEnabled()) {
       log.info("Upserted [" + numRowsUpserted + "] Tag Data Compacted records. Completed  in "
-          + (System.currentTimeMillis() - start) + "ms.");
+              + (System.currentTimeMillis() - start) + "ms.");
     }
     dbConnection.setAutoCommit(true);
   }
-  
 }

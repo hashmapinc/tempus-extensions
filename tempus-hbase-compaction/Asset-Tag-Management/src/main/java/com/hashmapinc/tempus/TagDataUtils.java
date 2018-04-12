@@ -57,11 +57,6 @@ public class TagDataUtils {
         return 1;
       }
 
-    /*  int res = String.CASE_INSENSITIVE_ORDER.compare(i1.getPointTag(), i2.getPointTag());
-      if (res == 0) {
-        return 1;
-      }
-*/
       if (i1.getTs().before(i2.getTs())) {
         return -1;
       } else if (i1.getTs().after(i2.getTs())) {

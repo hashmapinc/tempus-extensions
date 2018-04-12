@@ -17,8 +17,11 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.log4j.Logger;
+import org.apache.phoenix.schema.types.PDataType;
+import org.apache.phoenix.schema.types.PDataTypeFactory;
 import org.apache.phoenix.schema.types.PDate;
 import org.apache.phoenix.schema.types.PInteger;
+import org.apache.phoenix.schema.types.PIntegerArray;
 import org.apache.phoenix.schema.types.PLong;
 
 public class Utils {
@@ -192,103 +195,5 @@ public class Utils {
       throw new ConfigurationException(
           "HBase Zookeper Url doesn't look right: " + hbaseZookeeperUrl);
     }
-  }
-
-  //For Long URI's
-  public static byte[] createScanRow(long uri, Long tsMillis, Integer tsNanos) {
-    log.debug("uri[" + uri + "]; tsMillis[" + tsMillis + "]; tsNanos[" + tsNanos + "];");
-    Long hbUri = -(Long.MIN_VALUE - uri);
-    Long hbMillisTs = -(Long.MIN_VALUE - tsMillis);
-
-    byte[] bytesURI = Bytes.toBytes(hbUri);
-    byte[] bytesTsMillis = Bytes.toBytes(hbMillisTs);
-    byte[] bytesTsNanos = null;
-
-    byte[] hbRowKey = null;
-    if (tsNanos != null) {
-      Integer hbNanosTs = tsNanos;
-      bytesTsNanos = Bytes.toBytes(hbNanosTs);
-      hbRowKey = new byte[bytesURI.length + bytesTsMillis.length + bytesTsNanos.length];
-    } else {
-      hbRowKey = new byte[bytesURI.length + bytesTsMillis.length];
-    }
-    log.debug("hbRowKey.length " + hbRowKey.length);
-    int incrOffset = Bytes.putBytes(hbRowKey, 0, bytesURI, 0, bytesURI.length);
-    incrOffset = Bytes.putBytes(hbRowKey, incrOffset, bytesTsMillis, 0, bytesTsMillis.length);
-    if (tsNanos != null) {
-      incrOffset = Bytes.putBytes(hbRowKey, incrOffset, bytesTsNanos, 0, bytesTsNanos.length);
-    }
-    return hbRowKey;
-  }
-
-  public static byte[] createScanStartRow(long startURI, long origStartTs) {
-    log.debug("startURI[" + startURI + "]; startTs[" + origStartTs + "];");
-
-    byte[] startRow = null;
-    if (origStartTs == 0) {
-      Long hbUri = -(Long.MIN_VALUE - startURI);
-      byte[] bytesStartURI = Bytes.toBytes(hbUri);
-      startRow = new byte[bytesStartURI.length];
-      Bytes.putBytes(startRow, 0, bytesStartURI, 0, bytesStartURI.length);
-    } else {
-      return createScanRow(startURI, origStartTs, null);
-    }
-    return startRow;
-  }
-
-  public static byte[] createScanStopRow(long stopURI, long origStopTs) {
-    return createScanRow(stopURI, origStopTs, null);
-  }
-
-  public static byte[] createPhoenixRow(long uri, long ts){
-    //Phoenix
-    byte[] phoenixUri = PLong.INSTANCE.toBytes(uri);
-    byte[] phoenixTs = PLong.INSTANCE.toBytes(ts);
-    byte[] retRow = Bytes.add(phoenixUri, phoenixTs);
-    return retRow;
-
-  }
-
-  //For String URI's
-  public static byte[] createScanRow(String pointTag, Long tsMillis, Integer tsNanos) {
-    //log.debug("pointTag[" + pointTag + "]; tsMillis[" + tsMillis + "]; tsNanos[" + tsNanos +
-    // "];");
-    Long hbMillisTs = -(Long.MIN_VALUE - tsMillis);
-    byte[] bytesPointTag = Bytes.toBytes(pointTag);
-    byte[] bytesTsMillis = Bytes.toBytes(hbMillisTs);
-    byte[] bytesTsNanos = null;
-
-    byte[] hbRowKey = null;
-    if (tsNanos != null) {
-      Integer hbNanosTs = tsNanos;
-      bytesTsNanos = Bytes.toBytes(hbNanosTs);
-      hbRowKey = new byte[bytesPointTag.length + bytesTsMillis.length + bytesTsNanos.length + 1];
-    } else {
-      hbRowKey = new byte[bytesPointTag.length + bytesTsMillis.length + 1];
-    }
-    int incrOffset = Bytes.putBytes(hbRowKey, 0, bytesPointTag, 0, bytesPointTag.length);
-    incrOffset = Bytes.putByte(hbRowKey, incrOffset, (byte) 0);
-    incrOffset = Bytes.putBytes(hbRowKey, incrOffset, bytesTsMillis, 0, bytesTsMillis.length);
-    if (tsNanos != null) {
-      incrOffset = Bytes.putBytes(hbRowKey, incrOffset, bytesTsNanos, 0, bytesTsNanos.length);
-    }
-    return hbRowKey;
-  }
-
-  public static byte[] createScanStartRow(String startPointTag, Long origStartTs) {
-    //log.debug("startPointTag[" + startPointTag + "]; startTs[" + origStartTs + "];");
-    byte[] bytesStartPointTag = Bytes.toBytes(startPointTag);
-    byte[] startRow = null;
-    if (origStartTs == 0) {
-      startRow = new byte[bytesStartPointTag.length];
-      Bytes.putBytes(startRow, 0, bytesStartPointTag, 0, bytesStartPointTag.length);
-    } else {
-      return createScanRow(startPointTag, origStartTs, null);
-    }
-    return startRow;
-  }
-
-  public static byte[] createScanStopRow(String stopPointTag, Long origStopTs) {
-    return createScanRow(stopPointTag, origStopTs, null);
   }
 }

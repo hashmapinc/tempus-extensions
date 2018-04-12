@@ -27,14 +27,14 @@ public class TagData implements Serializable{
   }
 
   /**
-   * @return the pointTag
+   * @return the URI
    */
   public long getUri() {
     return uri;
   }
 
   /**
-   * @param pointTag the pointTag to set
+   * @param uri the URI to set
    */
   public void setUri(long uri) {
     this.uri = uri;
@@ -142,52 +142,4 @@ public class TagData implements Serializable{
   public String toString() {
     return ReflectionToStringBuilder.toString(this);
   }
-
-  /* (non-Javadoc)
-   * @see java.lang.Object#hashCode()
-   *
-  @Override
-  public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + ((maxTs == null) ? 0 : maxTs.hashCode());
-    result = prime * result + ((minTs == null) ? 0 : minTs.hashCode());
-    result = prime * result + ((pointTag == null) ? 0 : pointTag.hashCode());
-    result = prime * result + ((q == null) ? 0 : q.hashCode());
-    result = prime * result + ((ts == null) ? 0 : ts.hashCode());
-    result = prime * result + ((vs == null) ? 0 : vs.hashCode());
-    return result;
-  }
-
-  /* (non-Javadoc)
-   * @see java.lang.Object#equals(java.lang.Object)
-   */
-  
-  /*
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) return true;
-    if (obj == null) return false;
-    if (getClass() != obj.getClass()) return false;
-    TagData other = (TagData) obj;
-    if (maxTs == null) {
-      if (other.maxTs != null) return false;
-    } else if (!maxTs.equals(other.maxTs)) return false;
-    if (minTs == null) {
-      if (other.minTs != null) return false;
-    } else if (!minTs.equals(other.minTs)) return false;
-    if (pointTag == null) {
-      if (other.pointTag != null) return false;
-    } else if (!pointTag.equals(other.pointTag)) return false;
-    if (q == null) {
-      if (other.q != null) return false;
-    } else if (!q.equals(other.q)) return false;
-    if (ts == null) {
-      if (other.ts != null) return false;
-    } else if (!ts.equals(other.ts)) return false;
-    if (vs == null) {
-      if (other.vs != null) return false;
-    } else if (!vs.equals(other.vs)) return false;
-    return true;
-  }*/
 }

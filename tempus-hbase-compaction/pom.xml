@@ -21,21 +21,18 @@
 		<hbase.hortonworks.version>1.1.2.${hdp.version}</hbase.hortonworks.version>
 		<zookeeper.hortonworks.version>3.4.6.${hdp.version}</zookeeper.hortonworks.version>
 		<hadoop.hortonworks.version>2.7.3.${hdp.version}</hadoop.hortonworks.version>
-		<spark.hortonworks.version>1.6.2.${hdp.version}</spark.hortonworks.version>
-		<hdp.scala.version>2.10</hdp.scala.version>
 		<maven-compiler-plugin.version>3.0</maven-compiler-plugin.version>
 		<maven-shade-plugin.version>2.3</maven-shade-plugin.version>
 	</properties>
 
 	<modules>
-		<!--  <module>SparkCompaction</module> -->
 		<module>CompactionClient</module>
 		<module>CompactionService</module>
+        <module>PhoenixUDFs</module>
 		<!-- Shared Modules -->
 		<module>Utils</module>
 		<module>Asset-Tag-Management</module>
 		<module>PhoenixDBUtils</module>
-		<module>PhoenixUDFs</module>
 	</modules>
 
 	<build>
