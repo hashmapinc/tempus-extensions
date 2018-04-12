@@ -14,23 +14,6 @@
 	<version>0.0.1-SNAPSHOT</version>
 
 	<dependencies>
-		<!-- Phoenix Core-->
-        <dependency>
-            <groupId>org.apache.phoenix</groupId>
-            <artifactId>phoenix-core</artifactId>
-            <version>${phoenix.hortonworks.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>sqlline</groupId>
-                    <artifactId>sqlline</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
 		<dependency>
 			<groupId>com.google.protobuf</groupId>
 			<artifactId>protobuf-java</artifactId>
@@ -67,35 +50,6 @@
 			<groupId>commons-configuration</groupId>
 			<artifactId>commons-configuration</artifactId>
 			<version>1.10</version>
-			
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-common</artifactId>
-			<version>${hbase.hortonworks.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-			<version>2.4.4</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>2.4.4</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-annotations</artifactId>
-			<version>2.4.4</version>
 		</dependency>
 	</dependencies>
 	<build>

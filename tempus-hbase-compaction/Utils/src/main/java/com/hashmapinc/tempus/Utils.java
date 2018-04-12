@@ -1,5 +1,9 @@
 package com.hashmapinc.tempus;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.log4j.Logger;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -12,17 +16,6 @@ import java.util.Calendar;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.TimeZone;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.log4j.Logger;
-import org.apache.phoenix.schema.types.PDataType;
-import org.apache.phoenix.schema.types.PDataTypeFactory;
-import org.apache.phoenix.schema.types.PDate;
-import org.apache.phoenix.schema.types.PInteger;
-import org.apache.phoenix.schema.types.PIntegerArray;
-import org.apache.phoenix.schema.types.PLong;
 
 public class Utils {
   final static Logger log = Logger.getLogger(Utils.class);
