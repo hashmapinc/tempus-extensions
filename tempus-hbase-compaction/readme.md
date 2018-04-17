@@ -29,10 +29,10 @@
 - $ `./run-compaction.sh ../target/uber-compaction-client-0.0.1-SNAPSHOT.jar com.hashmapinc.tempus.CompactionClient compaction.properties log4j.properties`
 ##### To Uncompact and get the original data back
 - Copy UDF to HDFS
-    - $ `hadoop fs -copyFromLocal `
-- Add UDF to Phoenix
-    - CREATE FUNCTION
-- Execute the below query to test, Uncomacted data will be upserted to a new table tduc
+    - $ `hadoop fs -copyFromLocal PhoenixUDFs/target /apps/hbase/data/lib`
+- Add UDF to Phoenix. Fire below query in sqlline.py
+    - sqlline> CREATE FUNCTION UNCOMPACT
+- Execute the below query to test the UDF. Uncompacted data will be upserted to a new table **_tduc_**
 
 
 
