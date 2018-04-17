@@ -16,7 +16,7 @@
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/test-data/tag_data_sample.sql
 ##### Deploy the Coprocessor Jar to HBase region servers lib path
 - On a Standalone HDP 2.6, use the below command
-    -  `$ cp CompactionService/target/ /usr/hdp/current/hbase-regionserver/lib/`
+    -  `$ cp CompactionService/target/uber-compaction-service-0.0.1-SNAPSHOT.jar /usr/hdp/current/hbase-regionserver/lib/`
 - For a production cluster, copy the coprocessor jar to all the region servers
 ##### Add co-processor entry in hbase-site.xml
 - Add the foll. key `hbase.coprocessor.region.classes` in hbase-site.xml if not present. The value

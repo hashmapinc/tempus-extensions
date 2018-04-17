@@ -63,8 +63,8 @@ public class CompactionClient implements AsyncInterface {
     private static final String PHOENIX_TAG_DATA_TABLE_NAME_PROPERTY = "compaction.tagdata.table";
     private static final String PHOENIX_TAG_DATA_COMPACT_TABLE_NAME_PROPERTY =
             "compaction.tagdata.compact.table";
-    private static final String PHOENIX_COMPACTION_STATUS_TABLE_NAME_PROPERTY =
-            "compaction.tagdata.compactstatus.table";
+    //private static final String PHOENIX_COMPACTION_STATUS_TABLE_NAME_PROPERTY =
+//            "compaction.tagdata.compactstatus.table";
     private static final String COMPACTION_TIME_WINDOW_SECS_PROPERTY =
             "compaction.data.window.seconds";
     private static final String COMPACTION_ENDTS_PROPERTY = "compaction.num.uncompacted.days";
@@ -241,12 +241,12 @@ public class CompactionClient implements AsyncInterface {
         DatabaseService.setTagListTable(Utils.readProperty(properties, PHOENIX_TAG_DATA_LIST_TABLE_NAME_PROPERTY));
         DatabaseService.setTagDataTable(Utils.readProperty(properties, PHOENIX_TAG_DATA_TABLE_NAME_PROPERTY));
         DatabaseService.setCompactionTable(Utils.readProperty(properties, PHOENIX_TAG_DATA_COMPACT_TABLE_NAME_PROPERTY));
-        DatabaseService.setCompactionStatusTable(Utils.readProperty(properties, PHOENIX_COMPACTION_STATUS_TABLE_NAME_PROPERTY));
+        //DatabaseService.setCompactionStatusTable(Utils.readProperty(properties,PHOENIX_COMPACTION_STATUS_TABLE_NAME_PROPERTY));
         if (log.isDebugEnabled()) {
             log.info("tagListTable: " + DatabaseService.getTagListTable());
             log.info("tagDataTable: " + DatabaseService.getTagDataTable());
             log.info("compactionTable: " + DatabaseService.getCompactionTable());
-            log.info("compactionStatusTable: " + DatabaseService.getCompactionStatusTable());
+          //  log.info("compactionStatusTable: " + DatabaseService.getCompactionStatusTable());
         }
     }
 
@@ -336,14 +336,16 @@ public class CompactionClient implements AsyncInterface {
     long startTs, final long endTs, final List<Long> urisToBeDeleted, int partitionSizeForDeletes)
             throws ExecutionException, InterruptedException {
         List<List<Long>> deleteList = Lists.partition(urisToBeDeleted, partitionSizeForDeletes);
-        log.info("deleteList size: " + deleteList.size());
         //Block here for timeout of phoenixQueryTimeOutMs * the number of batch deletes
-        final long waitTimeMinsDeletion = ((((CompactionClient.phoenixQueryTimeOutMs + 1) * deleteList.size())) / 1000) / 60;
-        log.info("Deletion Wait Time: " + waitTimeMinsDeletion + " mins");
+        final long waitTimeMinsDeletion = (CompactionClient.phoenixQueryTimeOutMs + 1) * deleteList.size();
+        //if(log.isDebugEnabled()) {
+            log.debug("deleteList size: " + deleteList.size());
+            log.info("Deletion Wait Time: " + waitTimeMinsDeletion + " ms");
+        //}
         CompletableFuture<List<Long>> futureRecordsDeletedForCompactedPts = AsyncInterface.deleteCompactedRecords(executor, deleteList, dbService, startTs, endTs);
         List<Long> listDeletedRecords = null;
         try {
-            listDeletedRecords = futureRecordsDeletedForCompactedPts.get(waitTimeMinsDeletion, TimeUnit.MINUTES);
+            listDeletedRecords = futureRecordsDeletedForCompactedPts.get(waitTimeMinsDeletion, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             log.info("Got TimeoutException exception: " + e.getMessage());
             return -1;
@@ -450,7 +452,7 @@ public class CompactionClient implements AsyncInterface {
         log.info("Total Records Compacted: " + CompactionClient.totalTdRecordsCompacted);
         log.info("Total Records Upserted: " + CompactionClient.totalTdRecordsUpserted);
         log.info("Total Records Deleted: " + CompactionClient.totalTdRecordsDeleted);
-        log.info("Time Taken to fetch Point Tags, Compact & Upserted Compacted Data : " +
+        log.info("Time Taken to fetch Point Tags, Compact & Upsert Compacted Data : " +
                 (stopTimeForCompaction - startTimeForCompaction) + " ms");
         log.info("Time Taken for deleting compacted Records: " + (stopTimeForDeletes - startTimeForDeletes) + " ms");
         log.info("Total Time Taken: " + (System.currentTimeMillis() - compactionClientStartTime) + " ms");
