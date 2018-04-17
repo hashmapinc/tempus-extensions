@@ -1,9 +1,10 @@
-Steps to Build
+# Steps to Build
 
-cd Config/Protobuf
-./gen-proto.sh
-cd ..
-mvn clean install
+
+##### Clone tempus-extensions
+- $ _git clone https://<-git_username->@github.com/hashmapinc/tempus-extensions_
+- $ _./Config/Protobuf/gen-proto.sh_
+- $ _mvn clean install_
 
 
 To Run the compaction client
