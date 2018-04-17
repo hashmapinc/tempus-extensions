@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 
-
 public class CompactionClient implements AsyncInterface {
 
     private static final Logger log = Logger.getLogger(CompactionClient.class);
@@ -75,7 +74,7 @@ public class CompactionClient implements AsyncInterface {
      */
     private static final long DEFAULT_RETRY_MILLIS = 2000L;
     private static final int DEFAULT_NUM_THREADS = 16;
-    private static final int DEFAULT_COMPACTION_PARTITIONS = 32;
+    private static final int DEFAULT_COMPACTION_PARTITIONS = 100;
     private static final int DEFAULT_DELETE_PARTITIONS = 50;
     private static final long DEFAULT_PHOENIX_QUERY_TIMEOUT_MS = 60000;
 
@@ -97,6 +96,7 @@ public class CompactionClient implements AsyncInterface {
     private static long totalTdRecordsCompacted = 0L;
     private static long totalTdRecordsUpserted = 0L;
     private static long totalTdRecordsDeleted = 0L;
+
     /**
      * @return the numUnCompactedMilliSecs
      */
@@ -315,8 +315,7 @@ public class CompactionClient implements AsyncInterface {
                                     final DatabaseService dbService, final long startTs, final long endTs, final List<Long> urisToBeDeleted,
                                     final long numUrisToBeDeleted) throws ExecutionException,
             InterruptedException {
-        int partitionSizeForDeletes = Integer.valueOf(Utils.readProperty(properties, "compaction" +
-                ".deletes.batchsize", String.valueOf(DEFAULT_DELETE_PARTITIONS)));
+        int partitionSizeForDeletes = Integer.valueOf(Utils.readProperty(properties, "compaction.deletes.batchsize", String.valueOf(DEFAULT_DELETE_PARTITIONS)));
         long totalTdRecordsDeleted = 0;
         int retry_count = 0;
         int reduce_factor = 10;
@@ -324,7 +323,7 @@ public class CompactionClient implements AsyncInterface {
         while (partitionSize != 0) {
             totalTdRecordsDeleted = deleteUris(executor, dbService, startTs, endTs,
                     urisToBeDeleted, partitionSize);
-            if(totalTdRecordsDeleted > 0)
+            if (totalTdRecordsDeleted > 0)
                 break;
             partitionSize = Math.round(partitionSize / 2);
             log.info("Recalculated partitionSize: " + partitionSize);
@@ -339,7 +338,7 @@ public class CompactionClient implements AsyncInterface {
         List<List<Long>> deleteList = Lists.partition(urisToBeDeleted, partitionSizeForDeletes);
         log.info("deleteList size: " + deleteList.size());
         //Block here for timeout of phoenixQueryTimeOutMs * the number of batch deletes
-        final long waitTimeMinsDeletion = ((((CompactionClient.phoenixQueryTimeOutMs+1) * deleteList.size())) / 1000) / 60;
+        final long waitTimeMinsDeletion = ((((CompactionClient.phoenixQueryTimeOutMs + 1) * deleteList.size())) / 1000) / 60;
         log.info("Deletion Wait Time: " + waitTimeMinsDeletion + " mins");
         CompletableFuture<List<Long>> futureRecordsDeletedForCompactedPts = AsyncInterface.deleteCompactedRecords(executor, deleteList, dbService, startTs, endTs);
         List<Long> listDeletedRecords = null;
