@@ -26,10 +26,8 @@
 -  Restart all the region servers and monitor for any errors 
 ##### We can now test the client with the sample data populated above
 - Open _Config/Properties/compaction.properties_ and change the property **hbase.zookeeper.url** with value suitable to your configuration.
-- Below commands are executed in the directory _tempus-hbase-compaction_.
+- Run below commands from _tempus-hbase-compaction_ directory.
 #####
-    $# ln -s Config/Properties/compaction.properties
-    $# ln -s Config/Properties/log4j.properties
     $ ./CompactionClient/bin/run-compaction.sh 
     ./CompactionClient/target/uber-compaction-client-0.0.1-SNAPSHOT.jar com.hashmapinc.tempus.CompactionClient Config/Properties/compaction.properties Config/Properties/log4j.properties
 ##### To Uncompact and get the original data back
@@ -37,9 +35,12 @@
 - Add UDF to Phoenix. Fire below query in sqlline.py
 - Execute the below query to test the UDF. Uncompacted data will be upserted to a new table **_tduc_**
 #####
-    $ hadoop fs -copyFromLocal PhoenixUDFs/target /apps/hbase/data/lib
-    $ sqlline> CREATE FUNCTION UNCOMPACT
-    $ sqlline> select 
+    $ hadoop fs -copyFromLocal PhoenixUDFs/target/uber-uncompact-0.0.1-SNAPSHOT.jar 
+    /apps/hbase/data/lib/uncompact.jar
+    $ sqlline> CREATE FUNCTION UNCOMPACT(VARBINARY, VARBINARY, VARBINARY, INTEGER, VARCHAR, VARCHAR, BIGINT) returns VARCHAR ARRAY as 'com.hashmapinc.tempus.UnCompact' using jar 
+    'hdfs://jedireborn.net:8020/apps/hbase/data/lib/uncompact.jar
+    $ sqlline> select UNCOMPACT("VB", "Q", "TS", "NS", 'T1', 'T2', "ID")from td_compact where id = X 
+    and STTS <=T2 and STTS >=T1. 
 
 
 

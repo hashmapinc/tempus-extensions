@@ -28,11 +28,11 @@ import com.hashmapinc.tempus.codec.impl.ShortValueCodec;
 
 // Eg Query:-
 /*
- * select UNCOMPACT("VB", "Q", "TS", "NS", T1, T2, "ID")from td_compact where id = X and FIRSTTS
+ * select UNCOMPACT("VB", "Q", "TS", "NS", 'T1', 'T2', "ID")from td_compact where id = X and FIRSTTS
  * <=T2 and FIRSTTS >=T1.
  */
 /*
- * We need to pass the foll parameters TOARRAY(VARBINARY, VARBINARY, VARBINARY, INTEGER, BIGINT,
+ * We need to pass the foll parameters UNCOMPACT(VARBINARY, VARBINARY, VARBINARY, INTEGER, BIGINT,
  * BIGINT) Usage:- UNCOMPACT("VB", "Q", "TS", "NUMSAMPLES", FROMTIME, ENDTIME, "PT")
  * @param VARBINARY:- VB
  * @param VARBINARY:- Q
