@@ -4,7 +4,7 @@
     $ git clone https://github.com/hashmapinc/tempus-extensions
     l$ cd tempus-extensions/tempus-hbase-compaction
 ##### Build Protobuf. The corresponding Java code will be created in _Utils/src/main/java/com/hashmapinc/tempus/CompactionProtos.java_
-    $ ./Config/Protobuf/gen-proto.sh
+    $ ./Protobuf/gen-proto.sh
 ##### Build the Compaction client, HBase coprocessor, and Phoenix UDF
     $ mvn clean install -T2
 ##### Create tag_list, tag_data and tdc tables in Phoenix for testing 
