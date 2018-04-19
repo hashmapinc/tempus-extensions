@@ -6,11 +6,11 @@ upsert into tag_list (id, name, datatype, status) values(81, 'Test', 'String', 1
 upsert into tag_list (id, name, datatype, status) values(82, 'Test', 'String', 1);
 upsert into tag_list (id, name, datatype, status) values(83, 'Test', 'String', 1);
 upsert into tag_list (id, name, datatype, status) values(84, 'Test', 'String', 1);
-upsert into tag_list (id, name, datatype, status) values(85, 'Test', 'String', 1);
-upsert into tag_list (id, name, datatype, status) values(86, 'Test', 'String', 1);
-upsert into tag_list (id, name, datatype, status) values(87, 'Test', 'String', 1);
-upsert into tag_list (id, name, datatype, status) values(88, 'Test', 'String', 1);
-upsert into tag_list (id, name, datatype, status) values(90, 'Test', 'String', 1);
+upsert into tag_list (id, name, datatype, status) values(85, 'Test', 'Byte', 1);
+upsert into tag_list (id, name, datatype, status) values(86, 'Test', 'Boolean', 1);
+upsert into tag_list (id, name, datatype, status) values(87, 'Test', 'DWord', 1);
+upsert into tag_list (id, name, datatype, status) values(88, 'Test', 'Short', 1);
+upsert into tag_list (id, name, datatype, status) values(90, 'Test', 'Word', 1);
 upsert into tag_list (id, name, datatype, status) values(93, 'Test', 'Long', 1);
 upsert into tag_list (id, name, datatype, status) values(145, 'Test', 'String', 1);
 upsert into tag_list (id, name, datatype, status) values(175, 'Test', 'String', 1);

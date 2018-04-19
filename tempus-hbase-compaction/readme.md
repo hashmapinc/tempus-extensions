@@ -36,16 +36,25 @@ be created as specified by the value of property `hbase.rootdir`. Eg: If `hbase.
 - Copy UDF to HDFS path specified by value of `hbase.dynamic.jars.dir`
 - Run **CREATE FUNCTION** as shown in below commands 
 sqlline.py
-- Execute the below query to test the UDF. Uncompacted data will be upserted to a new table **_tduc_**
-- To delete the function run **DROP FUNCTION** wuery. It will delete meat data of the function 
-from Phoenix.
+- Before executing the UDF below environment variables have to be exported else UDF will thrown a
+ _RuntimeException_
+    - `export PHOENIX_CONN_PARAM="jedireborn.net:2181:/hbase-unsecure"` - For performing certain DB queries in the UDF.
+    - `export TAGLIST_TABLE=tag_list` - Table which stores the datatypes of URI.
+    - Optional `export UNCOMPACT_TABLE=td_uncompact` - By default uncompacted data is stored in 
+    _**tduc**_ table. This export makes it configurable.
+- Execute the below query to test the UDF. Uncompacted data will be upserted to a either 
+_**tduc**_ or as defined by env _**UNCOMPACT_TABLE**_
 ##### Commands for Uncompaction
     $ hadoop fs -copyFromLocal PhoenixUDFs/target/uber-uncompact-0.0.1-SNAPSHOT.jar 
     /apps/hbase/data/lib/uncompact.jar
-    $ sqlline> CREATE FUNCTION UNCOMPACT(VARBINARY, VARBINARY, VARBINARY, INTEGER, VARCHAR, VARCHAR, BIGINT) returns VARCHAR ARRAY as 'com.hashmapinc.tempus.Uncompact' using jar 
+    $ export PHOENIX_CONN_PARAM="localhost:2181:/hbase-unsecure"
+    $ export TAGLIST_TABLE=tag_list
+    $ sqlline> CREATE FUNCTION UNCOMPACT(VARBINARY, VARBINARY, VARBINARY, INTEGER, VARCHAR, VARCHAR, BIGINT) returns VARCHAR as 'com.hashmapinc.tempus.Uncompact' using jar 
     'hdfs://jedireborn.net:8020/apps/hbase/data/lib/uncompact.jar
     $ sqlline> select UNCOMPACT("VB", "Q", "TS", "NS", 'T1', 'T2', "ID")from tdc [where id = X | 
     where id = X and STTS <= T2 and STTS >= T1]; 
+   
+
 
 
 

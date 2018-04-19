@@ -63,8 +63,6 @@ public class CompactionClient implements AsyncInterface {
     private static final String PHOENIX_TAG_DATA_TABLE_NAME_PROPERTY = "compaction.tagdata.table";
     private static final String PHOENIX_TAG_DATA_COMPACT_TABLE_NAME_PROPERTY =
             "compaction.tagdata.compact.table";
-    //private static final String PHOENIX_COMPACTION_STATUS_TABLE_NAME_PROPERTY =
-//            "compaction.tagdata.compactstatus.table";
     private static final String COMPACTION_TIME_WINDOW_SECS_PROPERTY =
             "compaction.data.window.seconds";
     private static final String COMPACTION_ENDTS_PROPERTY = "compaction.num.uncompacted.days";
@@ -97,6 +95,7 @@ public class CompactionClient implements AsyncInterface {
     private static long totalTdRecordsUpserted = 0L;
     private static long totalTdRecordsDeleted = 0L;
 
+    private static int executorShutdownAwaitTime = 10;
     /**
      * @return the numUnCompactedMilliSecs
      */
@@ -338,10 +337,10 @@ public class CompactionClient implements AsyncInterface {
         List<List<Long>> deleteList = Lists.partition(urisToBeDeleted, partitionSizeForDeletes);
         //Block here for timeout of phoenixQueryTimeOutMs * the number of batch deletes
         final long waitTimeMinsDeletion = (CompactionClient.phoenixQueryTimeOutMs + 1) * deleteList.size();
-        //if(log.isDebugEnabled()) {
+        if(log.isDebugEnabled()) {
             log.debug("deleteList size: " + deleteList.size());
-            log.info("Deletion Wait Time: " + waitTimeMinsDeletion + " ms");
-        //}
+            log.debug("Deletion Wait Time: " + waitTimeMinsDeletion + " ms");
+        }
         CompletableFuture<List<Long>> futureRecordsDeletedForCompactedPts = AsyncInterface.deleteCompactedRecords(executor, deleteList, dbService, startTs, endTs);
         List<Long> listDeletedRecords = null;
         try {
@@ -423,9 +422,8 @@ public class CompactionClient implements AsyncInterface {
 
             log.info("Calling executor shutdown....");
             executor.shutdown();
-            // Wait 10 mins max for any running tasks to complete
             log.info("Waiting termination of executor....");
-            executor.awaitTermination(10, TimeUnit.MINUTES);
+            executor.awaitTermination(executorShutdownAwaitTime, TimeUnit.MINUTES);
         } catch (IOException e) {
             // HBase Exception
             e.printStackTrace();
@@ -435,7 +433,7 @@ public class CompactionClient implements AsyncInterface {
             e.printStackTrace();
         } finally {
             if (!executor.isTerminated()) {
-                log.info("Executor not terminated yet. Apply some diagnostics");
+                log.debug("Executor not terminated yet. Calling shutdownNow()...");
             }
             executor.shutdownNow();
             DatabaseService.closeConnection();

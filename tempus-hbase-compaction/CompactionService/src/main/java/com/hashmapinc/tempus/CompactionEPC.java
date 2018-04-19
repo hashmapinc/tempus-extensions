@@ -43,7 +43,7 @@ import com.hashmapinc.tempus.codec.impl.ShortValueCodec;
 public class CompactionEPC extends CompactionService implements Coprocessor, CoprocessorService {
 
   private final static transient Logger log = Logger.getLogger(CompactionEPC.class);
-  private final static int ROW_KEY_URI_LENGTH = PDataType.fromSqlTypeName("BIGINT").getByteSize();//8 ;
+  private final static int ROW_KEY_URI_LENGTH = PDataType.fromSqlTypeName("BIGINT").getByteSize();
   private final static int ROW_KEY_TS_LENGTH = PDataType.fromSqlTypeName("DATE").getByteSize();
   private static Boolean doLogging = false;
   RegionCoprocessorEnvironment regionEnv = null;
@@ -156,7 +156,7 @@ public class CompactionEPC extends CompactionService implements Coprocessor, Cop
             }
             case "_0":{
               tsMillis = (Long) PLong.INSTANCE.toObject(tsMillisBytes);
-              lvc.packValue(tsMillis, dosTs);
+              lvc.packTs(tsMillis, dosTs);
               break;
             }
             case "Q":{
@@ -169,7 +169,9 @@ public class CompactionEPC extends CompactionService implements Coprocessor, Cop
           }
         }
         if(doLogging)
-          log.info(String.format("For uri[%d]; ts[%d]; vl[%d]; vd[%f]; vs[%s]; q[%d];", compactedData.getUri(), tsMillis, vl, vd, vs, quality));
+          log.info(String.format("For uri[%d]; ts[%d]; vl[%d]; vd[%f]; vs[%s]; q[%d];",
+                  compactedData.getUri(), tsMillis, tagData.getVl(), tagData.getVd(), tagData
+                          .getVs(), quality));
 
         tagDataList.add(tagData);
         results.clear();

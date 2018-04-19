@@ -4,6 +4,7 @@ import com.hashmapinc.tempus.CompactionProtos.CompactedData;
 import com.hashmapinc.tempus.CompactionProtos.CompactionRequest;
 import com.hashmapinc.tempus.CompactionProtos.CompactionResponse;
 import com.hashmapinc.tempus.CompactionProtos.CompactionService;
+import com.hashmapinc.tempus.codec.ValueCodec;
 
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.client.coprocessor.Batch;
@@ -13,6 +14,7 @@ import org.apache.log4j.Logger;
 import org.apache.phoenix.schema.types.PDataType;
 import org.apache.phoenix.schema.types.PLong;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
