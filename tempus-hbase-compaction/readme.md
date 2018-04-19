@@ -14,33 +14,38 @@
 ##### Upsert test data
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/test-data/tag_list_sample.sql
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/test-data/tag_data_sample.sql
-##### Deploy the Coprocessor Jar to HBase region servers lib path
-- On a Standalone HDP 2.6, use the below command
-    -  `$ cp CompactionService/target/uber-compaction-service-0.0.1-SNAPSHOT.jar /usr/hdp/current/hbase-regionserver/lib/`
-- For a production cluster, copy the coprocessor jar to all the region servers
+##### Deploy the Coprocessor Jar to HBase region servers lib path. For instance on a Single Node HDP 2.6, use the below command whereas for a production cluster, copy the coprocessor jar to all the region servers
+    $ cp CompactionService/target/uber-compaction-service-0.0.1-SNAPSHOT.jar /usr/hdp/current/hbase-regionserver/lib/
 ##### Add co-processor entry in hbase-site.xml
 - Add the foll. key `hbase.coprocessor.region.classes` in hbase-site.xml if not present. The value
  will be full class name of our co-processor i.e `com.hashmapinc.tempus.CompactionEPC`. If other 
  values are already present add the new entry separated by a comma.
-##### Restart HBase region servers
--  Restart all the region servers and monitor for any errors 
+- Restart all the region servers and monitor for any errors 
 ##### We can now test the client with the sample data populated above
 - Open _Config/Properties/compaction.properties_ and change the property **hbase.zookeeper.url** with value suitable to your configuration.
-- Run below commands from _tempus-hbase-compaction_ directory.
-#####
+##### Run below command from _tempus-hbase-compaction_ directory. 
     $ ./CompactionClient/bin/run-compaction.sh 
     ./CompactionClient/target/uber-compaction-client-0.0.1-SNAPSHOT.jar com.hashmapinc.tempus.CompactionClient Config/Properties/compaction.properties Config/Properties/log4j.properties
-##### To Uncompact and get the original data back
-- Copy UDF to HDFS
-- Add UDF to Phoenix. Fire below query in sqlline.py
+##### To Uncompact and get the original data back [Ref: https://phoenix.apache.org/udf.html]
+- Create a new directory in HDFS where the UDF will be copied. We will name it as `lib` and will 
+be created as specified by the value of property `hbase.rootdir`. Eg: If `hbase.rootdir` value is
+ _/apps/hbase/data/_, then the UDF has to be copied at _/apps/hbase/data/lib_
+- Add foll new properties in hbase-site.xml 
+    - Name: `phoenix.functions.allowUserDefinedFunctions`, Value: `true` 
+    - Name: `hbase.dynamic.jars.dir`, Value: `${hbase.rootdir}/lib`
+- Copy UDF to HDFS path specified by value of `hbase.dynamic.jars.dir`
+- Run **CREATE FUNCTION** as shown in below commands 
+sqlline.py
 - Execute the below query to test the UDF. Uncompacted data will be upserted to a new table **_tduc_**
-#####
+- To delete the function run **DROP FUNCTION** wuery. It will delete meat data of the function 
+from Phoenix.
+##### Commands for Uncompaction
     $ hadoop fs -copyFromLocal PhoenixUDFs/target/uber-uncompact-0.0.1-SNAPSHOT.jar 
     /apps/hbase/data/lib/uncompact.jar
-    $ sqlline> CREATE FUNCTION UNCOMPACT(VARBINARY, VARBINARY, VARBINARY, INTEGER, VARCHAR, VARCHAR, BIGINT) returns VARCHAR ARRAY as 'com.hashmapinc.tempus.UnCompact' using jar 
+    $ sqlline> CREATE FUNCTION UNCOMPACT(VARBINARY, VARBINARY, VARBINARY, INTEGER, VARCHAR, VARCHAR, BIGINT) returns VARCHAR ARRAY as 'com.hashmapinc.tempus.Uncompact' using jar 
     'hdfs://jedireborn.net:8020/apps/hbase/data/lib/uncompact.jar
-    $ sqlline> select UNCOMPACT("VB", "Q", "TS", "NS", 'T1', 'T2', "ID")from td_compact where id = X 
-    and STTS <=T2 and STTS >=T1. 
+    $ sqlline> select UNCOMPACT("VB", "Q", "TS", "NS", 'T1', 'T2', "ID")from tdc [where id = X | 
+    where id = X and STTS <= T2 and STTS >= T1]; 
 
 
 

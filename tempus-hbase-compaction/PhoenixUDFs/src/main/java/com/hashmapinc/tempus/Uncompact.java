@@ -22,67 +22,112 @@ import org.apache.phoenix.schema.types.PInteger;
 import org.apache.phoenix.schema.types.PVarbinary;
 import org.apache.phoenix.schema.types.PVarchar;
 
+
 import com.hashmapinc.tempus.codec.ValueCodec;
 import com.hashmapinc.tempus.codec.impl.LongValueCodec;
 import com.hashmapinc.tempus.codec.impl.ShortValueCodec;
 
 // Eg Query:-
 /*
- * select UNCOMPACT("VB", "Q", "TS", "NS", 'T1', 'T2', "ID")from td_compact where id = X and FIRSTTS
- * <=T2 and FIRSTTS >=T1.
+ * select UNCOMPACT("VB", "Q", "TS", "NS", 'T1', 'T2', "ID")from td_compact [where id = X and
+ * STTS <=T2 and STTS >=T1]
  */
 /*
  * We need to pass the foll parameters UNCOMPACT(VARBINARY, VARBINARY, VARBINARY, INTEGER, BIGINT,
- * BIGINT) Usage:- UNCOMPACT("VB", "Q", "TS", "NUMSAMPLES", FROMTIME, ENDTIME, "PT")
- * @param VARBINARY:- VB
- * @param VARBINARY:- Q
- * @param VARBINARY:- TS
- * @param INTEGER:- NS
- * @param VARCHAR:- Start TS - from time where we need the records
- * @param VARCHAR:- End TS - time till which we need records
- * @param VARCHAR:- PT - used to upsert the values to tduc (tag_data_uncompact) table
+ * BIGINT) Usage:- UNCOMPACT("VB", "Q", "TS", "NUMSAMPLES", FROMTIME, ENDTIME, "ID")
+ * @param VARBINARY :- VB - Compacted Values
+ * @param VARBINARY :- Q - Compacted Quality
+ * @param VARBINARY :- TS - Compacted Timestamps
+ * @param INTEGER   :- NS - Number of Compacted Samples
+ * @param VARCHAR   :- Start TS - from time where we need the records
+ * @param VARCHAR   :- End TS - time till which we need records
+ * @param BIGINT    :- URI - used to upsert the values to tduc (tag_data_uncompact) table
  */
-@FunctionParseNode.BuiltInFunction(name = UnCompact.NAME,
+@FunctionParseNode.BuiltInFunction(name = Uncompact.NAME,
     args = { @FunctionParseNode.Argument(allowedTypes = { PVarbinary.class }),
         @FunctionParseNode.Argument(allowedTypes = { PVarbinary.class }),
         @FunctionParseNode.Argument(allowedTypes = { PVarbinary.class }),
         @FunctionParseNode.Argument(allowedTypes = { PInteger.class }),
         @FunctionParseNode.Argument(allowedTypes = { PVarchar.class }),
         @FunctionParseNode.Argument(allowedTypes = { PVarchar.class }),
-        @FunctionParseNode.Argument(allowedTypes = { PVarchar.class }) })
-public class UnCompact extends ScalarFunction {
-
+        @FunctionParseNode.Argument(allowedTypes = { PInteger.class }) })
+public class Uncompact extends ScalarFunction {
   public static final String NAME = "UNCOMPACT";
-  private ValueCodec valueCodec = null;
+  private static final String UNCOMPACTED_TABLE = "TDUC";
+  private static final Logger log = Logger.getLogger(Uncompact.class);
+
   private int estimatedByteSize = 0;
-  static Logger log = Logger.getLogger(UnCompact.class);
-  private static final String UNCOMPACTED_TABLE = "tduc";
+  private static ValueCodec valueCodec = null;
+  private static DatabaseService dbService = null;
+  private static String unCompactTable;
 
-  DatabaseService dbService = null;
 
-  public UnCompact() {
+  public Uncompact() {
   }
 
-  public UnCompact(List<Expression> children) throws SQLException, ConfigurationException {
-    super(children);
-    dbService = new DatabaseService();
+  public static void initDbConn() {
     try {
-      dbService.openConnection();
-    } catch (Exception e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-      throw new SQLException("dbService.openConnection() Exception");
+      String hbaseZookeeperUrl = System.getenv("PHOENIX_CONN_PARAM");
+      if ((null == hbaseZookeeperUrl) || (0 == hbaseZookeeperUrl.length())) {
+        throw new ConfigurationException("Please set PHOENIX_CONN_PARAM environment variable with value as Zookeeper Quorum");
+      }
+      dbService = new DatabaseService(hbaseZookeeperUrl);
+      log.info("hbaseZookeeperUrl: " + hbaseZookeeperUrl);
+      DatabaseService.openConnection();
+      log.info("DB Connection success");
+    } catch (IllegalArgumentException e) {
+      throw new RuntimeException("IllegalArgumentException: " + e.getMessage());
+    } catch (SQLException e) {
+      throw new RuntimeException("SQLException: " + e.getMessage());
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("ClassNotFoundException: " + e.getMessage());
+    } catch (ConfigurationException e){
+      throw new RuntimeException("ConfigurationException: " + e.getMessage());
     }
-    String tagListTable = System.getenv("UNCOMPACT_TL_TABLE");
+  }
+
+  public static List<Short> deCompactQ(ByteArrayInputStream compressedData) throws IOException {
+    List<Short> unpackedQList = new ArrayList<Short>();
+    DataInputStream dis = new DataInputStream(compressedData);
+    Short unpackedQ;
+    ShortValueCodec shortValCodec = new ShortValueCodec();
+    while ((unpackedQ = shortValCodec.unPackQuality(dis)) != null) {
+      unpackedQList.add(unpackedQ);
+    }
+    return unpackedQList;
+  }
+
+  public static List<Long> deCompactTs(ByteArrayInputStream compressedData) throws IOException {
+    List<Long> unpackedTsList = new ArrayList<Long>();
+    DataInputStream dis = new DataInputStream(compressedData);
+    Long unpackedTs;
+    LongValueCodec longValCodec = new LongValueCodec();
+    while ((unpackedTs = longValCodec.unPackTs(dis)) != null) {
+      unpackedTsList.add(unpackedTs);
+    }
+    return unpackedTsList;
+  }
+
+  public Uncompact(List<Expression> children) throws SQLException, ConfigurationException {
+    super(children);
+    initDbConn();
+    if (dbService == null)
+      throw new RuntimeException("Exception in intializing DB service");
+
+    String tagListTable = System.getenv("TAGLIST_TABLE");
     if ((null == tagListTable) || (0 == tagListTable.length())) {
-      throw new ConfigurationException(
-          "Please set UNCOMPACT_TL_TABLE environment variable with value as tag_list table to find datatype of a URI.");
+      throw new RuntimeException("Please set TAGLIST_TABLE environment variable with value of " +
+              "table to find URI datatype.");
     }
-    dbService.setTagListTable(tagListTable);
+    DatabaseService.setTagListTable(tagListTable);
+
+    unCompactTable = System.getenv("UNCOMPACT_TABLE");
+    if ((null == unCompactTable) || (0 == unCompactTable.length())) {
+      unCompactTable = UNCOMPACTED_TABLE;
+    }
     // Drop Table if exists and Create again so that on every UDF execution we have data in it
-    dbService.dropTable(UNCOMPACTED_TABLE);
-    //
-    dbService.createTable(UNCOMPACTED_TABLE);
+    dbService.dropTable(unCompactTable);
+    dbService.createTable(unCompactTable);
   }
 
   private Expression getExpression(int index) {
@@ -94,9 +139,6 @@ public class UnCompact extends ScalarFunction {
       (byte[]) binaryExpr.getDataType().toObject(ptr, binaryExpr.getSortOrder()));
     byte[] binaryValue = (byte[]) binaryExpr.getDataType().toObject(ptr, binaryExpr.getSortOrder(),
       estimatedByteSize, 0);
-    // log.debug("estimatedByteSize = " + estimatedByteSize);
-    // log.debug("binaryValue.length = " + binaryValue.length);
-
     return binaryValue;
   }
 
@@ -145,7 +187,8 @@ public class UnCompact extends ScalarFunction {
     int numSamples =
         numSamplesExpr.getDataType().getCodec().decodeInt(ptr, numSamplesExpr.getSortOrder());
     if (numSamples <= 0) {
-      log.debug("numSamples = " + numSamples);
+      if(log.isDebugEnabled())
+        log.debug("numSamples = " + numSamples);
       return false;
     }
 
@@ -166,6 +209,7 @@ public class UnCompact extends ScalarFunction {
     }
     String stopTsStr = (String) stopTsExpr.getDataType().toObject(ptr, stopTsExpr.getSortOrder());
 
+
     if ((startTsStr == null) || (stopTsStr == null) || (startTsStr.length() == 0)
         || (stopTsStr.length() == 0)) {
       throw new RuntimeException("Start and Stop Timestamps can't be null or empty");
@@ -176,10 +220,7 @@ public class UnCompact extends ScalarFunction {
 
     if (startTs.after(stopTs)) {
       throw new RuntimeException("Start TS can't occur after Stop TS");
-
     }
-    log.debug(String.format("%s, %s", startTs.toString(), stopTs.toString()));
-    log.debug(String.format("TS in long[%d, %d]", startTs.getTime(), stopTs.getTime()));
 
     Expression uriExpr = getExpression(6);
     if (!uriExpr.evaluate(tuple, ptr)) {
@@ -189,46 +230,30 @@ public class UnCompact extends ScalarFunction {
     }
     Long uri = (Long) uriExpr.getDataType().toObject(ptr, uriExpr.getSortOrder());
 
-    log.debug("Tuple size: " + tuple.size());
+    if(log.isDebugEnabled()){
+      log.info(String.format("%s, %s", startTs.toString(), stopTs.toString()));
+      log.info(String.format("TS in long[%d, %d]", startTs.getTime(), stopTs.getTime()));
+      log.debug("Tuple size: " + tuple.size());
+    }
     return varBinaryToArray(ptr, binaryValue, binaryQ, binaryTS, startTs.getTime(),
       stopTs.getTime(), numSamples, uri, getSortOrder());
   }
 
-  public List<Short> deCompactQ(ByteArrayInputStream compressedData) throws IOException {
-    List<Short> unpackedQList = new ArrayList<Short>();
-    DataInputStream dis = new DataInputStream(compressedData);
-    Short unpackedQ;
-    ShortValueCodec shortValCodec = new ShortValueCodec();
-    while ((unpackedQ = shortValCodec.unPackQuality(dis)) != null) {
-      unpackedQList.add(unpackedQ);
-    }
-    return unpackedQList;
-  }
-
-  public List<Long> deCompactTs(ByteArrayInputStream compressedData) throws IOException {
-    List<Long> unpackedTsList = new ArrayList<Long>();
-    DataInputStream dis = new DataInputStream(compressedData);
-    Long unpackedTs;
-    LongValueCodec longValCodec = new LongValueCodec();
-    while ((unpackedTs = longValCodec.unPackTs(dis)) != null) {
-      unpackedTsList.add(unpackedTs);
-    }
-    return unpackedTsList;
-  }
-
   private boolean varBinaryToArray(ImmutableBytesWritable ptr, byte[] binaryValue, byte[] binaryQ,
       byte[] binaryTS, Long startTs, Long stopTs, int numSamples, Long uri, SortOrder sortOrder) {
-    log.debug(String.format("TS in method[%d, %d]", startTs, stopTs));
+    if(log.isDebugEnabled())
+      log.info(String.format("TS in method[%d, %d]", startTs, stopTs));
+    if (!dbService.hasConnection()) {
+      throw new RuntimeException("dbService.hasConnection() Exception");
+    }
     try {
-      if (!dbService.hasConnection()) {
-        dbService.openConnection();
-        throw new SQLException("dbService.openConnection() Exception");
-      }
       String dataType = dbService.getDataType(uri);
+      log.info("dataType1: " + dataType);
       valueCodec = TagDataUtils.getCodec(dataType);
 
       ByteArrayInputStream baValue = new ByteArrayInputStream(binaryValue);
       List<TagData> rawValues = valueCodec.decompress(baValue);
+      log.info("rawValues: " + rawValues);
 
       ByteArrayInputStream baQ = new ByteArrayInputStream(binaryQ);
       List<Short> rawQ = deCompactQ(baQ);
@@ -236,9 +261,8 @@ public class UnCompact extends ScalarFunction {
       ByteArrayInputStream baTS = new ByteArrayInputStream(binaryTS);
       List<Long> rawTS = deCompactTs(baTS);
 
-      ArrayList<String> list = new ArrayList<>();
-      List<TagData> tduList = new ArrayList<TagData>();
-      int rowsUncompacted = 0;
+      List<TagData> tducList = new ArrayList<TagData>();
+      long rowsUncompacted = 0;
       for (int i = 0; i < numSamples; ++i) {
         String values = null;
         if (dataType.equals("String")) {
@@ -248,21 +272,24 @@ public class UnCompact extends ScalarFunction {
         } else {
           values = String.valueOf(rawValues.get(i).getVl());
         }
-        log.debug(String.format("Values[%d, %s, %d]", rawTS.get(i), values, rawQ.get(i)));
 
-        log.debug(String.format("TS[%d, %d, %d]", rawTS.get(i), startTs, stopTs));
-        log.debug(String.format("TS-String[%s, %s, %s]", new Timestamp(rawTS.get(i)).toString(),
-          new Timestamp(startTs).toString(), new Timestamp(stopTs)).toString());
+        if(log.isDebugEnabled()){
+          log.info(String.format("Values[%d, %s, %d]", rawTS.get(i), values, rawQ.get(i)));
 
-        log.debug(String.format("TS-UTC[%d, %d, %d]", Utils.convertToUTC(rawTS.get(i)),
-          Utils.convertToUTC(startTs), Utils.convertToUTC(stopTs)));
-        log.debug(String.format("TS-UTC-String[%s, %s, %s]",
-          new Timestamp(Utils.convertToUTC(rawTS.get(i))).toString(),
-          new Timestamp(Utils.convertToUTC(startTs)).toString(),
-          new Timestamp(Utils.convertToUTC(stopTs)).toString()));
+          log.info(String.format("TS[%d, %d, %d]", rawTS.get(i), startTs, stopTs));
+          log.info(String.format("TS-String[%s, %s, %s]", new Timestamp(rawTS.get(i)).toString(),
+                  new Timestamp(startTs).toString(), new Timestamp(stopTs)).toString());
+
+          log.info(String.format("TS-UTC[%d, %d, %d]", Utils.convertToUTC(rawTS.get(i)),
+                  Utils.convertToUTC(startTs), Utils.convertToUTC(stopTs)));
+          log.info(String.format("TS-UTC-String[%s, %s, %s]",
+                  new Timestamp(Utils.convertToUTC(rawTS.get(i))).toString(),
+                  new Timestamp(Utils.convertToUTC(startTs)).toString(),
+                  new Timestamp(Utils.convertToUTC(stopTs)).toString()));
+        }
         Long rawTsInUtc = Utils.convertToUTC(rawTS.get(i));
+
         if (rawTsInUtc >= startTs && rawTsInUtc <= stopTs) {
-          log.debug("In here");
           TagData tdu = new TagData();
           tdu.setUri(uri);
           tdu.setTs(new Timestamp(rawTS.get(i)));
@@ -274,45 +301,41 @@ public class UnCompact extends ScalarFunction {
             tdu.setVl(rawValues.get(i).getVl());
           }
           tdu.setQ(rawQ.get(i));
-          tduList.add(tdu);
-          log.debug("Raw Values are " + tdu.toString());
-          // We have to convert the TS to UTC before returning it
-          list.add(String.format("%s, %s, %d", (new Timestamp(rawTS.get(i))).toString(), values,
-            rawQ.get(i)));
-          log.debug("list element for " + tdu.getUri() + ": " + list.get(list.size() - 1));
-          if (tduList.size() % 20000 == 0) {
-            log.debug("Upsert " + tduList.size() + " records to " + UNCOMPACTED_TABLE);
-            dbService.upsertUncompactedData(UNCOMPACTED_TABLE, tduList);
-            tduList.clear();
-          }
+          tducList.add(tdu);
           rowsUncompacted++;
+
+          if(log.isDebugEnabled())
+            log.info("Raw Values are " + tdu.toString());
+
+          if (rowsUncompacted % 20000 == 0) {
+            int rowsUpserted = dbService.upsertUncompactedData(unCompactTable, tducList);
+            if(log.isDebugEnabled())
+              log.info("Upserted " + rowsUpserted + " records to " + unCompactTable);
+            tducList.clear();
+          }
         }
       }
-      if (!tduList.isEmpty()) {
-        log.debug("Upsert " + tduList.size() + " records to " + UNCOMPACTED_TABLE);
-        dbService.upsertUncompactedData(UNCOMPACTED_TABLE, tduList);
+      if (!tducList.isEmpty()) {
+        int rowsUpserted = dbService.upsertUncompactedData(unCompactTable, tducList);
+        if(log.isDebugEnabled())
+          log.info("Upserted " + rowsUpserted + " records to " + unCompactTable);
       }
-      dbService.closeConnection();
-      log.debug("list size: " + list.size());
-      String[] array = new String[list.size()];
-      array = list.toArray(array);
+      DatabaseService.closeConnection();
 
-      // PhoenixArray phoenixArray = new PhoenixArray(PVarchar.INSTANCE, array);
-      // ptr.set(PVarcharArray.INSTANCE.toBytes(phoenixArray, PVarchar.INSTANCE, sortOrder));
       byte[] byteValue = getDataType().toBytes("Uncompacted " + rowsUncompacted + " records for "
-          + uri + " between " + (new Timestamp(startTs)).toString() + " and "
-          + (new Timestamp(stopTs)).toString() + " in " + UNCOMPACTED_TABLE);
+          + uri + " between " + (new Timestamp(startTs)).toString() + "and "
+          + (new Timestamp(stopTs)).toString() + " in " + unCompactTable);
       ptr.set(byteValue);
       return true;
     } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      if(log.isDebugEnabled())
+        log.info(NAME + " UDF IOException: " + e.getMessage());
     } catch (SQLException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      if(log.isDebugEnabled())
+        log.info(NAME + " UDF SQLException: " + e.getMessage());
     } catch (Exception e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      if(log.isDebugEnabled())
+        log.info(NAME + " UDF Exception: " + e.getMessage());
     }
     return false;
   }
@@ -324,7 +347,6 @@ public class UnCompact extends ScalarFunction {
 
   @Override
   public PDataType getDataType() {
-    // return PVarcharArray.INSTANCE;
     return PVarchar.INSTANCE;
   }
 
@@ -364,5 +386,4 @@ public class UnCompact extends ScalarFunction {
   public SortOrder getSortOrder() {
     return children.get(0).getSortOrder();
   }
-
 }

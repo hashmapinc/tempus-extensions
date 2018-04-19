@@ -10,12 +10,13 @@ import java.util.List;
 
 import com.hashmapinc.tempus.TagData;
 
+import org.apache.log4j.Logger;
+
 public abstract class ValueCodec implements TagValueCodec {
   protected ByteArrayOutputStream baos;
   protected DataOutputStream dos;
 
-  protected ByteArrayInputStream bais;
-  protected DataInputStream dis;
+  private static final Logger log = Logger.getLogger(ValueCodec.class);
 
   public ValueCodec() {
     baos = new ByteArrayOutputStream();
@@ -25,7 +26,6 @@ public abstract class ValueCodec implements TagValueCodec {
   @Override
   public ByteArrayOutputStream compress(List<TagData> tagDataList) throws IOException {
     baos.reset();
-
     for (TagData tagData : tagDataList) {
       packValue(tagData, dos);
     }
@@ -42,21 +42,13 @@ public abstract class ValueCodec implements TagValueCodec {
   }
 
   @Override
-  public List<TagData> decompress(byte[] compressedData) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  @Override
   public List<TagData> decompress(ByteArrayInputStream compressedData) throws IOException {
     List<TagData> tagDataList = new ArrayList<TagData>();
-    dis = new DataInputStream(compressedData);
+    DataInputStream dis = new DataInputStream(compressedData);
     TagData tagData;
-
     while ((tagData = unpackValue(dis)) != null) {
       tagDataList.add(tagData);
     }
-
     return tagDataList;
   }
 

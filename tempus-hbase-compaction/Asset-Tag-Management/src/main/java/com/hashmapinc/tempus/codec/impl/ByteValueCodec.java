@@ -16,6 +16,7 @@ public class ByteValueCodec extends ValueCodec {
     dos.writeShort(val);
   }
 
+  @Override
   public TagData unpackValue(DataInputStream dis) throws IOException {
     try {
       Short val = dis.readShort();

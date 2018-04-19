@@ -15,7 +15,8 @@ public class WordValueCodec extends ValueCodec {
 		Integer val = ((Long)tagData.getVl()).intValue();
 		dos.writeInt(val);
 	}
-	
+
+	@Override
 	public TagData unpackValue(
 			DataInputStream dis) throws IOException {
 	  try {

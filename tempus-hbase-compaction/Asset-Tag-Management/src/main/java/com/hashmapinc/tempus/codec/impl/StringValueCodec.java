@@ -8,10 +8,11 @@ import java.io.IOException;
 import com.hashmapinc.tempus.TagData;
 import com.hashmapinc.tempus.codec.ValueCodec;
 
+import org.apache.log4j.Logger;
 
 
 public class StringValueCodec extends ValueCodec {
-
+	private static final Logger log = Logger.getLogger(StringValueCodec.class);
 	@Override
 	public void packValue(TagData tagData, DataOutputStream dos) throws IOException {
 		String s = (tagData.getVs() == null) ? "" : tagData.getVs();
@@ -19,7 +20,8 @@ public class StringValueCodec extends ValueCodec {
 		dos.writeShort(length);
 		dos.writeBytes(s);
 	}
-	
+
+	@Override
 	public TagData unpackValue(
 			DataInputStream dis) throws IOException {
 		try {

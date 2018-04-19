@@ -17,55 +17,6 @@ import com.hashmapinc.tempus.codec.impl.WordValueCodec;
 
 public class TagDataUtils {
 
-  /**
-   * Returns a comparator for TagData ts
-   * @return
-   */
-  public static Comparator<TagData> tagDataTsComparator() {
-    return ((Comparator<TagData> & Serializable) (TagData i1, TagData i2) -> {
-      if (i1 == null) {
-        if (i2 == null) {
-          return 0;
-        } else {
-          return -1;
-        }
-      } else if (i2 == null) {
-        return 1;
-      }
-      if (i1.getTs().before(i2.getTs())) {
-        return -1;
-      } else if (i1.getTs().after(i2.getTs())) {
-        return 1;
-      }
-      return 0;
-    });
-  }
-
-  /**
-   * Returns a comparator for TagData by uri, then ts
-   * @return
-   */
-  public static Comparator<TagData> tagDataUriTsComparator() {
-    return ((Comparator<TagData> & Serializable) (TagData i1, TagData i2) -> {
-      if (i1 == null) {
-        if (i2 == null) {
-          return 0;
-        } else {
-          return -1;
-        }
-      } else if (i2 == null) {
-        return 1;
-      }
-
-      if (i1.getTs().before(i2.getTs())) {
-        return -1;
-      } else if (i1.getTs().after(i2.getTs())) {
-        return 1;
-      }
-      return 0;
-    });
-  }
-
   public static ValueCodec getCodec(String dataType) {
     ValueCodec vc = null;
     if (dataType == null){
@@ -100,7 +51,6 @@ public class TagDataUtils {
         throw new IllegalArgumentException("Unknown datatype for fetching ValueCodec");
       }
     }
-
     return vc;
   }
 }

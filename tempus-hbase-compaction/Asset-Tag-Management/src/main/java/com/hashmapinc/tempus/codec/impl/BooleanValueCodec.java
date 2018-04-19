@@ -16,16 +16,32 @@ public class BooleanValueCodec extends ValueCodec {
     dos.writeBoolean(val);
   }
 
+  @Override
+  public TagData unpackValue(DataInputStream dis) throws IOException {
+    try {
+      Boolean b = dis.readBoolean();
+      TagData tagData = new TagData();
+      tagData.setVl(b == true ? 1 : 0);
+      return tagData;
+    } catch (EOFException eofe) {
+      // absorb the exception
+      return null;
+    }
+  }
+
+  @Deprecated
   public void packQuality(TagData tagData, DataOutputStream dos) throws IOException {
     //TODO
-    Boolean val = true;//tagData.getQ();
+    Boolean val = true;
     dos.writeBoolean(val);
   }
 
+  @Deprecated
   public void packQuality(Boolean val, DataOutputStream dos) throws IOException {
     dos.writeBoolean(val);
   }
 
+  @Deprecated
   public TagData unpackQuality(DataInputStream dis) throws IOException {
     try {
       Boolean val = dis.readBoolean();
@@ -38,15 +54,4 @@ public class BooleanValueCodec extends ValueCodec {
     }
   }
 
-  public TagData unpackValue(DataInputStream dis) throws IOException {
-    try {
-      Boolean b = dis.readBoolean();
-      TagData tagData = new TagData();
-      tagData.setVl(b == true ? 1 : 0);
-      return tagData;
-    } catch (EOFException eofe) {
-      // absorb the exception
-      return null;
-    }
-  }
 }

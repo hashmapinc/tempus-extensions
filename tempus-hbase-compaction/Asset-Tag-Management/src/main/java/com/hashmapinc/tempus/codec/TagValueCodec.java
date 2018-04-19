@@ -18,19 +18,19 @@ public interface TagValueCodec {
    * @param tagDataList
    * @return
    */
-  public ByteArrayOutputStream compress(final List<TagData> tagDataList) throws IOException;
+  ByteArrayOutputStream compress(final List<TagData> tagDataList) throws IOException;
 
-  public ByteArrayOutputStream compress(final TagData tagData) throws IOException;
-
-  /**
-   * @param compressedData
-   * @return
-   */
-  public List<TagData> decompress(byte[] compressedData);
+  ByteArrayOutputStream compress(final TagData tagData) throws IOException;
 
   /**
    * @param compressedData
    * @return
    */
-  public List<TagData> decompress(ByteArrayInputStream compressedData) throws IOException;
+  //List<TagData> decompress(byte[] compressedData);
+
+  /**
+   * @param compressedData
+   * @return
+   */
+  List<TagData> decompress(ByteArrayInputStream compressedData) throws IOException;
 }

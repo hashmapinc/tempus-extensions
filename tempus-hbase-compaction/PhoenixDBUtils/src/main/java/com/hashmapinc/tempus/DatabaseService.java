@@ -2,6 +2,7 @@ package com.hashmapinc.tempus;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.log4j.Logger;
+import org.junit.Test;
 
 import java.io.Serializable;
 import java.sql.Connection;
@@ -22,19 +23,13 @@ public class DatabaseService implements Serializable {
   private transient static Logger log = Logger.getLogger(DatabaseService.class);
 
   private static Connection dbConnection;
-  private transient PreparedStatement upsertCompactionStatusStmt;
-  private transient PreparedStatement upsertTduStmt;
 
   private static String tagListTable;
   private static String tagDataTable;
   private static String compactionTable;
-  private static String compactionStatusTable;
 
-  //TODO Remove all such comments starting with //*
-  /////////////////////////////////////////
   private static String phoenixJdbcUrl;
   private static String hbaseZookeeperUrl;
-
 
   /**
    * @return the tagListTable
@@ -85,23 +80,6 @@ public class DatabaseService implements Serializable {
       throw new IllegalArgumentException("compactionTable");
     }
     DatabaseService.compactionTable = compactionTable.toLowerCase();
-  }
-
-  /**
-   * @return the compactionStatusTable
-   */
-  public static String getCompactionStatusTable() {
-    return compactionStatusTable;
-  }
-
-  /**
-   * @param compactionStatusTable the compactionStatusTable to set
-   */
-  public static void setCompactionStatusTable(String compactionStatusTable) {
-    if (compactionStatusTable == null) {
-      throw new IllegalArgumentException("compactionStatusTable");
-    }
-    DatabaseService.compactionStatusTable = compactionStatusTable.toLowerCase();
   }
 
   /**
@@ -215,11 +193,6 @@ public class DatabaseService implements Serializable {
   public DatabaseService(String hbaseZookeeperUrl) {
     this.hbaseZookeeperUrl = hbaseZookeeperUrl;
     DatabaseService.setPhoenixJdbcUrl(DatabaseService.hbaseZookeeperUrl);
-  }
-
-  protected void clearPreparedStatements() {
-    upsertCompactionStatusStmt = null;
-    upsertTduStmt = null;
   }
 
   public List<TagList> getDistinctURI(int numRetries, long retryAfterMillis) {
@@ -423,7 +396,6 @@ public class DatabaseService implements Serializable {
   }
 
   public String getDataType(long uri) throws SQLException {
-    // select from TAG_LIST where uri
     String uriDataType = null;
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
@@ -472,21 +444,19 @@ public class DatabaseService implements Serializable {
             + " (id BIGINT NOT NULL, ts DATE NOT NULL, vl BIGINT, vd DOUBLE, vs VARCHAR, q SMALLINT CONSTRAINT pk PRIMARY KEY (id, ts ROW_TIMESTAMP)) COMPRESSION = 'SNAPPY'");
   }
 
-  public void upsertUncompactedData(String tableName, List<TagData> tduList) throws SQLException {
+  public int upsertUncompactedData(String tableName, List<TagData> tduList) throws SQLException {
+    PreparedStatement upsertTduStmt = null;
     if (!hasConnection()) {
       throw new IllegalStateException("no connection");
     }
 
     if (tableName == null) {
-      throw new IllegalArgumentException("td");
+      throw new IllegalArgumentException("Uncompacted table name null");
     }
 
-    if (upsertTduStmt != null) upsertTduStmt.clearParameters();
-
+    dbConnection.setAutoCommit(false);
     int numRowsUpserted = 0;
     long start = System.currentTimeMillis();
-
-    log.debug("list size is " + tduList.size());
     for (TagData td : tduList) {
       if (td == null) {
         throw new IllegalArgumentException("td");
@@ -508,5 +478,33 @@ public class DatabaseService implements Serializable {
               + (System.currentTimeMillis() - start) + "ms.");
     }
     dbConnection.setAutoCommit(true);
+    return numRowsUpserted;
+  }
+
+  @Test
+  public byte[] getCompactedData(long uri, String columnName) throws SQLException {
+    byte[] binaryData = null;
+    if (!hasConnection()) {
+      throw new IllegalStateException("no connection");
+    }
+
+    PreparedStatement queryTdcStmt = null;
+    if(queryTdcStmt != null)
+      queryTdcStmt.clearParameters();
+
+    queryTdcStmt = getDbConnection().prepareStatement("SELECT " + columnName + " FROM " +
+            compactionTable + " where id = ? order by id, ts limit 1 ");
+
+    long start = System.currentTimeMillis();
+    queryTdcStmt.setLong(1, uri);
+    ResultSet results = queryTdcStmt.executeQuery();
+    if (!results.next()) {
+      return null;
+    }
+    binaryData = results.getBytes(1);
+    if (log.isDebugEnabled()) {
+      log.info("Queried BinaryData for uri: " + (System.currentTimeMillis() - start) + "ms. : ");
+    }
+    return binaryData;
   }
 }
