@@ -1,5 +1,9 @@
 # Steps to build, deploy and test tempus-hbase-compaction
 
+##### Environment
+Below steps are tested on a single node HDP 2.6.2.0-205 running HDFS, HBase and Phoenix on CentOS
+ 7.4. For installation of HDP on CentOS refer **https://docs.hortonworks.com/HDPDocuments/HDP2/HDP-2.6.2/index.html**
+
 ##### Clone tempus-extensions and change directory to _tempus-hbase-compaction_ 
     $ git clone https://github.com/hashmapinc/tempus-extensions
     l$ cd tempus-extensions/tempus-hbase-compaction
@@ -11,10 +15,10 @@
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/tag_list.sql
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/tag_data.sql
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/tdc.sql
-##### Upsert test data
+##### Upsert sample data
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/test-data/tag_list_sample.sql
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/test-data/tag_data_sample.sql
-##### Deploy the Coprocessor Jar to HBase region servers lib path. For instance on a Single Node HDP 2.6, use the below command whereas for a production cluster, copy the coprocessor jar to all the region servers
+##### Deploy the Coprocessor Jar to HBase region servers lib path. On a Single Node HDP, use the below command. For a production cluster with multiple region servers, copy the coprocessor jar to lib path of all the region servers
     $ cp CompactionService/target/uber-compaction-service-0.0.1-SNAPSHOT.jar /usr/hdp/current/hbase-regionserver/lib/
 ##### Add co-processor entry in hbase-site.xml
 - Add the foll. key `hbase.coprocessor.region.classes` in hbase-site.xml if not present. The value
