@@ -48,4 +48,4 @@ EXTRA_DRIVER_OPTIONS="-Dpid=$$ -Dlog4j.configuration=file:$4"
 JAVA=$JAVA_HOME/bin/java
 JAVA_HEAP_MAX=-Xmx2048m
 
-"$JAVA" $JAVA_HEAP_MAX -classpath "${CLASSPATH}" $2 --props $3
+"$JAVA" ${JAVA_HEAP_MAX} ${EXTRA_DRIVER_OPTIONS} -classpath "${CLASSPATH}" $2 --props $3

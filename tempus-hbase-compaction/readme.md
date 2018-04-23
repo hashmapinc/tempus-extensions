@@ -6,7 +6,7 @@ Below steps are tested on a single node HDP 2.6.2.0-205 running HDFS, HBase and 
 
 ##### Clone tempus-extensions and change directory to _tempus-hbase-compaction_ 
     $ git clone https://github.com/hashmapinc/tempus-extensions
-    l$ cd tempus-extensions/tempus-hbase-compaction
+    $ cd tempus-extensions/tempus-hbase-compaction
 ##### Build Protobuf. The corresponding Java code will be created in _Utils/src/main/java/com/hashmapinc/tempus/CompactionProtos.java_
     $ ./Protobuf/gen-proto.sh
 ##### Build the Compaction client, HBase coprocessor, and Phoenix UDF
@@ -19,7 +19,8 @@ Below steps are tested on a single node HDP 2.6.2.0-205 running HDFS, HBase and 
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/test-data/tag_list_sample.sql
     $ sqlline.py <zk-quorum>:2181 < Config/Phoenix/test-data/tag_data_sample.sql
 ##### Deploy the Coprocessor Jar to HBase region servers lib path. On a Single Node HDP, use the below command. For a production cluster with multiple region servers, copy the coprocessor jar to lib path of all the region servers
-    $ cp CompactionService/target/uber-compaction-service-0.0.1-SNAPSHOT.jar /usr/hdp/current/hbase-regionserver/lib/
+    $ [sudo] cp CompactionService/target/uber-compaction-service-0.0.1-SNAPSHOT.jar 
+    /usr/hdp/current/hbase-regionserver/lib/
 ##### Add co-processor entry in hbase-site.xml
 - Add the foll. key `hbase.coprocessor.region.classes` in hbase-site.xml if not present. The value
  will be full class name of our co-processor i.e `com.hashmapinc.tempus.CompactionEPC`. If other 
@@ -42,7 +43,8 @@ be created as specified by the value of property `hbase.rootdir`. Eg: If `hbase.
 sqlline.py
 - Before executing the UDF below environment variables have to be exported else UDF will thrown a
  _RuntimeException_
-    - `export PHOENIX_CONN_PARAM="jedireborn.net:2181:/hbase-unsecure"` - For performing certain DB queries in the UDF.
+    - `export PHOENIX_CONN_PARAM="<-zk-quorum->:2181:/hbase-unsecure"` - For performing certain DB 
+    queries in the UDF. Replace with zookeeper quorum as per your configuration.
     - `export TAGLIST_TABLE=tag_list` - Table which stores the datatypes of URI.
     - Optional `export UNCOMPACT_TABLE=td_uncompact` - By default uncompacted data is stored in 
     _**tduc**_ table. This export makes it configurable.
@@ -54,12 +56,5 @@ _**tduc**_ or as defined by env _**UNCOMPACT_TABLE**_
     $ export PHOENIX_CONN_PARAM="localhost:2181:/hbase-unsecure"
     $ export TAGLIST_TABLE=tag_list
     $ sqlline> CREATE FUNCTION UNCOMPACT(VARBINARY, VARBINARY, VARBINARY, INTEGER, VARCHAR, VARCHAR, BIGINT) returns VARCHAR as 'com.hashmapinc.tempus.Uncompact' using jar 
-    'hdfs://jedireborn.net:8020/apps/hbase/data/lib/uncompact.jar
-    $ sqlline> select UNCOMPACT("VB", "Q", "TS", "NS", 'T1', 'T2', "ID")from tdc [where id = X | 
-    where id = X and STTS <= T2 and STTS >= T1]; 
-   
-
-
-
-
-
+    'hdfs://<-Namenode->:8020/apps/hbase/data/lib/uncompact.jar'
+    $ sqlline> select UNCOMPACT("VB", "Q", "TS", "NS", '2017-01-01 00:00:00', '2016-01-01 00:00:00', "ID") from tdc [where id = X | where id = X and STTS <= T2 and STTS >= T1];

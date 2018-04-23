@@ -264,16 +264,15 @@ public class Uncompact extends ScalarFunction {
       List<TagData> tducList = new ArrayList<TagData>();
       long rowsUncompacted = 0;
       for (int i = 0; i < numSamples; ++i) {
-        String values = null;
-        if (dataType.equals("String")) {
-          values = rawValues.get(i).getVs();
-        } else if (dataType.equals("Float")) {
-          values = String.valueOf(rawValues.get(i).getVd());
-        } else {
-          values = String.valueOf(rawValues.get(i).getVl());
-        }
-
         if(log.isDebugEnabled()){
+          String values = null;
+          if (dataType.equals("String")) {
+            values = rawValues.get(i).getVs();
+          } else if (dataType.equals("Float")) {
+            values = String.valueOf(rawValues.get(i).getVd());
+          } else {
+            values = String.valueOf(rawValues.get(i).getVl());
+          }
           log.info(String.format("Values[%d, %s, %d]", rawTS.get(i), values, rawQ.get(i)));
 
           log.info(String.format("TS[%d, %d, %d]", rawTS.get(i), startTs, stopTs));
@@ -328,14 +327,11 @@ public class Uncompact extends ScalarFunction {
       ptr.set(byteValue);
       return true;
     } catch (IOException e) {
-      if(log.isDebugEnabled())
-        log.info(NAME + " UDF IOException: " + e.getMessage());
+      log.error(NAME + " UDF IOException: " + e.getMessage());
     } catch (SQLException e) {
-      if(log.isDebugEnabled())
-        log.info(NAME + " UDF SQLException: " + e.getMessage());
+      log.error(NAME + " UDF SQLException: " + e.getMessage());
     } catch (Exception e) {
-      if(log.isDebugEnabled())
-        log.info(NAME + " UDF Exception: " + e.getMessage());
+      log.error(NAME + " UDF Exception: " + e.getMessage());
     }
     return false;
   }
