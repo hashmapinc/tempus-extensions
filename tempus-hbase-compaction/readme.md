@@ -57,4 +57,4 @@ _**tduc**_ or as defined by env _**UNCOMPACT_TABLE**_
     $ export TAGLIST_TABLE=tag_list
     $ sqlline> CREATE FUNCTION UNCOMPACT(VARBINARY, VARBINARY, VARBINARY, INTEGER, VARCHAR, VARCHAR, BIGINT) returns VARCHAR as 'com.hashmapinc.tempus.Uncompact' using jar 
     'hdfs://<-Namenode->:8020/apps/hbase/data/lib/uncompact.jar'
-    $ sqlline> select UNCOMPACT("VB", "Q", "TS", "NS", '2017-01-01 00:00:00', '2016-01-01 00:00:00', "ID") from tdc [where id = X | where id = X and STTS <= T2 and STTS >= T1];
+    $ sqlline> select UNCOMPACT("VB", "Q", "TS", "NS", '2016-01-01 00:00:00', '2017-01-01 00:00:00', "ID") from tdc [where id = X | where id = X and STTS <= T2 and STTS >= T1];
