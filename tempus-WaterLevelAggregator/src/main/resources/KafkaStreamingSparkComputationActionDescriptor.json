@@ -1,0 +1,54 @@
+{
+  "schema": {
+    "title": "Livy Action Configuration",
+    "type": "object",
+    "properties": {
+      "gatewayApiToken": {
+        "title": "Gateway Device API Token",
+        "type": "string"
+      },
+      "window": {
+        "title": "Sliding Window(in Seconds)",
+        "type": "integer"
+      },
+      "zkUrl": {
+        "title": "Zookeeper URL(s)",
+        "type": "string"
+      },
+      "kafkaBrokers": {
+        "title": "Kafka Broker(s)",
+        "type": "string"
+      },
+      "topic": {
+        "title": "Topic Name",
+        "type": "string"
+      },
+      "actionPath": {
+        "title": "Livy Action",
+        "type": "string"
+      },
+      "endpoint": {
+        "title": "MQTT Endpoint",
+        "type": "string"
+      }
+    },
+    "required": [
+      "gatewayApiToken",
+      "zkUrl",
+      "kafkaBrokers",
+      "topic",
+      "actionPath",
+      "endpoint"
+    ]
+  },
+  "form": [
+    "gatewayApiToken",
+    "window",
+    "volume",
+    "zkUrl",
+    "kafkaBrokers",
+    "topic",
+    "actionPath",
+    "endpoint"
+  ]
+}
