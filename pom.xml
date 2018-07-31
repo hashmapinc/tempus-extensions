@@ -22,6 +22,6 @@
     <modules>
         <module>tempus-kudu-store</module>
         <module>tempus-rateofchange/ratechange</module>
-        <module>tempus-WindSpeedGeoAggregator</module>
+        <module>tempus-WaterLevelAggregator</module>
     </modules>
 </project>
