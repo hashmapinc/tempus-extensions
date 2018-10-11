@@ -12,10 +12,10 @@ object ThingsboardPublisher {
   val GATEWAY_ACCESS_TOKEN: String = "GATEWAY_ACCESS_TOKEN"
   val MQTT_TOPIC: String = "v1/gateway/telemetry"
 
-   def connectToThingboard(mqttUrl: String, gatewayToken: String):MqttAsyncClient ={
+   def connectToThingsBoard(mqttUrl: String, gatewayToken: String):MqttAsyncClient ={
     INFO(s"trying to connect to $mqttUrl")
-    var client = new MqttAsyncClient(mqttUrl, MqttAsyncClient.generateClientId())
-    var options = new MqttConnectOptions()
+    val client = new MqttAsyncClient(mqttUrl, MqttAsyncClient.generateClientId())
+    val options = new MqttConnectOptions()
     options.setUserName(gatewayToken)
     client.connect(options, null, new IMqttActionListener{
       def onFailure(x1: IMqttToken,x2: Throwable): Unit ={}
@@ -25,12 +25,11 @@ object ThingsboardPublisher {
     client
   }
   
-  def publishTelemetryToThingsboard(client: MqttAsyncClient, dataTuple: (Long, Double)): Unit = {
-    INFO(f"Publish telemetry called with ts=${dataTuple._1}, rpmDelta=${dataTuple._2}")
-    val dataMsg = new MqttMessage(toDataJson(dataTuple._1, dataTuple._2).getBytes(StandardCharsets.UTF_8))
+  def publishTelemetryToThingsBoard(client: MqttAsyncClient, maxRpm: Double, minRpm: Double, delta: Double): Unit = {
+    INFO(f"Publish telemetry for stick slick rpm data called with maxRpm=$maxRpm, minRpm=$minRpm, maxMinDelta=$delta")
+    val dataMsg = new MqttMessage(toDataJson(maxRpm, minRpm, delta).getBytes(StandardCharsets.UTF_8))
     INFO(s"Publishing to thingsboard: $dataMsg")
     client.publish(MQTT_TOPIC, dataMsg, null, getCallBack)
-    INFO("After publishing to thingsboard")
   }
   
   def getCallBack: IMqttActionListener = {
@@ -40,9 +39,9 @@ object ThingsboardPublisher {
             }
   }
   
-  def toDataJson(ts: Long, rpmDelta: Double): String = {
+  def toDataJson(maxRpm: Double, minRpm: Double, delta: Double): String = {
     val mapper = new ObjectMapper()
-    val data = Map("ts" -> ts, "rpmDelta" -> rpmDelta)
+    val data = Map("maxRpm" -> maxRpm, "minRpm" -> minRpm, "maxMinRpmDelta" -> delta)
     mapper.writeValueAsString(data)
   }
   
