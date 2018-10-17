@@ -25,9 +25,9 @@ object ThingsboardPublisher {
     client
   }
   
-  def publishTelemetryToThingsBoard(client: MqttAsyncClient, maxRpm: Double, minRpm: Double, delta: Double): Unit = {
+  def publishTelemetryToThingsBoard(client: MqttAsyncClient, maxRpm: Double, minRpm: Double, delta: Double, deviceId: String): Unit = {
     INFO(f"Publish telemetry for stick slick rpm data called with maxRpm=$maxRpm, minRpm=$minRpm, maxMinDelta=$delta")
-    val dataMsg = new MqttMessage(toDataJson(maxRpm, minRpm, delta).getBytes(StandardCharsets.UTF_8))
+    val dataMsg = new MqttMessage(toDataJson(maxRpm, minRpm, delta, deviceId).getBytes(StandardCharsets.UTF_8))
     INFO(s"Publishing to thingsboard: $dataMsg")
     client.publish(MQTT_TOPIC, dataMsg, null, getCallBack)
   }
@@ -39,10 +39,17 @@ object ThingsboardPublisher {
             }
   }
   
-  def toDataJson(maxRpm: Double, minRpm: Double, delta: Double): String = {
+  def toDataJson(maxRpm: Double, minRpm: Double, delta: Double, deviceId: String): String = {
     val mapper = new ObjectMapper()
-    val data = Map("maxRpm" -> maxRpm, "minRpm" -> minRpm, "maxMinRpmDelta" -> delta)
-    mapper.writeValueAsString(data)
+    val json = mapper.createObjectNode()
+    val ja = json.putArray("Tank " + deviceId)
+    var obj=ja.addObject()
+    obj.put("ts", System.currentTimeMillis())
+    obj=obj.putObject("values")
+    obj.put("RPMP2PMAX", maxRpm)
+    obj.put("RPMP2PMIN", minRpm)
+    obj.put("RPMP2P", delta)
+    mapper.writeValueAsString(json)
   }
   
   def disconnect(client: MqttAsyncClient): Unit={
