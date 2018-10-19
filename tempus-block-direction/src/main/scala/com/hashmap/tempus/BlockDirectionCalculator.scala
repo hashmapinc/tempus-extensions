@@ -1,5 +1,6 @@
 package com.hashmap.tempus
 
+import java.lang
 import java.util.Optional
 
 import com.google.gson.{Gson, GsonBuilder}
@@ -17,7 +18,7 @@ import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 
 case class BlockPositionData(id: String, ts: Long, blockPosition: Double)
-case class PublishPositionData(BDIR: Int, BDIRTEXT: String)
+case class PublishPositionData(BDIR: Int, BDIRTEXT: String, BVEL: Double)
 
 @SparkRequest(main = "com.hashmap.tempus.BlockDirectionCalculator", jar = "uber-tempus-block-direction-0.0.1-SNAPSHOT.jar",
   name = "Block direction calculator", descriptor = "BlockDirectionCalculatorActionDescriptor.json",
@@ -83,14 +84,12 @@ object BlockDirectionCalculator {
       Some(currentPosData)
     } else if (currentPosData.ts - previousPosData.get.ts >= minComputationWindow && currentPosData.ts - previousPosData.get.ts <= maxComputationWindow) {
 
-      val (direction, directionText) =
-        if (currentPosData.blockPosition - previousPosData.get.blockPosition > 0) (1, "up")
-        else if (currentPosData.blockPosition - previousPosData.get.blockPosition == 0) (0, "stopped")
-        else (-1, "down")
+      val (direction: Int, directionText: String) = calculateDirection(previousPosData.get, currentPosData)
+      val velocity = calculateVelocity(previousPosData.get, currentPosData)
 
-      val data = PublishPositionData(direction, directionText)
+      val data = PublishPositionData(direction, directionText, velocity)
       val json = new GsonBuilder().create.toJson(data)
-      val empty: Optional[java.lang.Double] = Optional.ofNullable(null)
+      val empty: Optional[lang.Double] = Optional.ofNullable(null)
 
       new MqttConnector(mqttUrl, gatewayAccessToken).publish(json, Optional.of(currentPosData.ts), empty, currentPosData.id)
 
@@ -100,6 +99,16 @@ object BlockDirectionCalculator {
     } else {
       previousPosData
     }
+  }
+
+  private def calculateDirection(previousPosData: BlockPositionData, currentPosData: BlockPositionData) = {
+    if (currentPosData.blockPosition - previousPosData.blockPosition > 0) (1, "up")
+    else if (currentPosData.blockPosition - previousPosData.blockPosition == 0) (0, "stopped")
+    else (-1, "down")
+  }
+
+  private def calculateVelocity(previousPosData: BlockPositionData, currentPosData: BlockPositionData) = {
+    Math.abs((currentPosData.blockPosition - previousPosData.blockPosition) / ((currentPosData.ts - previousPosData.ts) / 1000))
   }
 
   private def parseAndPairByKey(jsonStr: String): (String, BlockPositionData) = {
