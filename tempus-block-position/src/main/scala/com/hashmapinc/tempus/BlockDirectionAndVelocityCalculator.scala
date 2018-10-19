@@ -1,11 +1,10 @@
-package com.hashmap.tempus
+package com.hashmapinc.tempus
 
 import java.lang
 import java.util.Optional
 
 import com.google.gson.{Gson, GsonBuilder}
 import com.hashmap.tempus.annotations.SparkRequest
-import com.hashmapinc.tempus.MqttConnector
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.log4j.Logger
@@ -20,19 +19,19 @@ import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 case class BlockPositionData(id: String, ts: Long, blockPosition: Double)
 case class PublishPositionData(BDIR: Int, BDIRTEXT: String, BVEL: Double)
 
-@SparkRequest(main = "com.hashmap.tempus.BlockDirectionCalculator", jar = "uber-tempus-block-direction-0.0.1-SNAPSHOT.jar",
-  name = "Block direction calculator", descriptor = "BlockDirectionCalculatorActionDescriptor.json",
+@SparkRequest(main = "com.hashmapinc.tempus.BlockDirectionAndVelocityCalculator", jar = "uber-tempus-block-position-0.0.1-SNAPSHOT.jar",
+  name = "Block direction and velocity calculator", descriptor = "BlockDirectionAndVelocityActionDescriptor.json",
   args = Array("mqttUrl", "kafkaUrl", "kafkaTopic", "minComputationWindow", "maxComputationWindow", "gatewayAccessToken"))
-class BlockDirectionCalculator
+class BlockDirectionAndVelocityCalculator
 
-object BlockDirectionCalculator {
+object BlockDirectionAndVelocityCalculator {
 
-  val log = Logger.getLogger(BlockDirectionCalculator.getClass)
+  private val log = Logger.getLogger(BlockDirectionAndVelocityCalculator.getClass)
 
-  var minComputationWindow: Long = _
-  var maxComputationWindow: Long = _
-  var gatewayAccessToken: String = _
-  var mqttUrl: String = _
+  private var minComputationWindow: Long = _
+  private var maxComputationWindow: Long = _
+  private var gatewayAccessToken: String = _
+  private var mqttUrl: String = _
 
   def main(args: Array[String]): Unit = {
 
@@ -86,14 +85,9 @@ object BlockDirectionCalculator {
 
       val (direction: Int, directionText: String) = calculateDirection(previousPosData.get, currentPosData)
       val velocity = calculateVelocity(previousPosData.get, currentPosData)
-
       val data = PublishPositionData(direction, directionText, velocity)
-      val json = new GsonBuilder().create.toJson(data)
-      val empty: Optional[lang.Double] = Optional.ofNullable(null)
 
-      new MqttConnector(mqttUrl, gatewayAccessToken).publish(json, Optional.of(currentPosData.ts), empty, currentPosData.id)
-
-      INFO(s"Published data to mqtt server: $mqttUrl with payload $data ")
+      publishToTempusCloud(currentPosData, data)
 
       previousPosData
     } else {
@@ -101,17 +95,26 @@ object BlockDirectionCalculator {
     }
   }
 
-  private def calculateDirection(previousPosData: BlockPositionData, currentPosData: BlockPositionData) = {
+  private def publishToTempusCloud(currentPosData: BlockPositionData, data: PublishPositionData) = {
+    val json = new GsonBuilder().create.toJson(data)
+    val empty: Optional[lang.Double] = Optional.ofNullable(null)
+
+    new MqttConnector(mqttUrl, gatewayAccessToken).publish(json, Optional.of(currentPosData.ts), empty, currentPosData.id)
+
+    INFO(s"Published data to mqtt server: $mqttUrl with payload $data ")
+  }
+
+  def calculateDirection(previousPosData: BlockPositionData, currentPosData: BlockPositionData) = {
     if (currentPosData.blockPosition - previousPosData.blockPosition > 0) (1, "up")
     else if (currentPosData.blockPosition - previousPosData.blockPosition == 0) (0, "stopped")
     else (-1, "down")
   }
 
-  private def calculateVelocity(previousPosData: BlockPositionData, currentPosData: BlockPositionData) = {
+  def calculateVelocity(previousPosData: BlockPositionData, currentPosData: BlockPositionData) = {
     Math.abs((currentPosData.blockPosition - previousPosData.blockPosition) / ((currentPosData.ts - previousPosData.ts) / 1000))
   }
 
-  private def parseAndPairByKey(jsonStr: String): (String, BlockPositionData) = {
+  def parseAndPairByKey(jsonStr: String): (String, BlockPositionData) = {
     val data: BlockPositionData = new Gson().fromJson(jsonStr.trim, classOf[BlockPositionData])
     (data.id, data)
   }
