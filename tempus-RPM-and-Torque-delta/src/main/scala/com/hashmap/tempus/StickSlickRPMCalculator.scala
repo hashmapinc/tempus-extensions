@@ -71,7 +71,7 @@ class StickSlickRPMCalculator
             override def compare(d1: Data, d2: Data): Int =
               Ordering[Double].compare(d1.currentRpm, d2.currentRpm)
           }).currentRpm)
-          publishData(mqttUrl, gatewayAccessToken, Value(maxRpm, minRpm, maxRpm - minRpm), rdd.first().ts, rdd.first().id)
+          publishData(mqttUrl, gatewayAccessToken, Value(maxRpm - minRpm, maxRpm, minRpm), rdd.first().ts, rdd.first().id)
         }
       })
 

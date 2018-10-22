@@ -71,7 +71,7 @@ object StickSlickTorqueCalculator {
           override def compare(d1: Data, d2: Data): Int =
             Ordering[Double].compare(d1.currentTorque, d2.currentTorque)
         }).currentTorque)
-        publishData(mqttUrl, gatewayAccessToken, Value(maxTorque, minTorque, maxTorque - minTorque), rdd.first().ts, rdd.first().id)
+        publishData(mqttUrl, gatewayAccessToken, Value(maxTorque - minTorque, maxTorque, minTorque), rdd.first().ts, rdd.first().id)
       }
     })
 
