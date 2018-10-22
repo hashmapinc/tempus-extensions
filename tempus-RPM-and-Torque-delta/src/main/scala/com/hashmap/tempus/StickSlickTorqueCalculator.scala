@@ -1,10 +1,13 @@
 package com.hashmap.tempus
 
 import java.lang
+import java.util.Optional
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.google.gson.GsonBuilder
 import com.hashmap.tempus.annotations.SparkRequest
+import com.hashmapinc.tempus.MqttConnector
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.SparkConf
@@ -13,7 +16,6 @@ import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
 import org.apache.spark.streaming.kafka010.KafkaUtils
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.apache.spark.streaming.{Minutes, StreamingContext}
-import org.eclipse.paho.client.mqttv3.MqttAsyncClient
 
 @SparkRequest(main = "com.hashmap.tempus.StickSlickTorqueCalculator", jar = "uber-stickslickrpmandtorque-0.0.1-SNAPSHOT.jar",
   name="Stick slick Torque calculator", descriptor="StickSlickTorqueCalculatorActionDescriptor.json",
@@ -57,11 +59,9 @@ object StickSlickTorqueCalculator {
 
     var maxTorque: Double = Double.MinValue
     var minTorque: Double = Double.MaxValue
-    var deviceId: String = ""
 
     result.foreachRDD(rdd => {
       if (!rdd.isEmpty()) {
-        deviceId = rdd.first().id
         maxTorque = math.max(maxTorque, rdd.max()(new Ordering[Data]() {
           override def compare(d1: Data, d2: Data): Int =
             Ordering[Double].compare(d1.currentTorque, d2.currentTorque)
@@ -71,7 +71,7 @@ object StickSlickTorqueCalculator {
           override def compare(d1: Data, d2: Data): Int =
             Ordering[Double].compare(d1.currentTorque, d2.currentTorque)
         }).currentTorque)
-        publishData(mqttUrl, gatewayAccessToken, Values(maxTorque, minTorque, deviceId))
+        publishData(mqttUrl, gatewayAccessToken, Value(maxTorque, minTorque, maxTorque - minTorque), rdd.first().ts, rdd.first().id)
       }
     })
 
@@ -80,26 +80,16 @@ object StickSlickTorqueCalculator {
 
   }
 
-  private def publishData(mqttUrl: String, gatewayAccessToken: String, values: Values) = {
-    val theClient: MqttAsyncClient = ThingsboardPublisher.connectToThingsBoard(mqttUrl, gatewayAccessToken)
-    ThingsboardPublisher.publishTelemetryToThingsBoard(theClient, toDataJson(values.maxTorque, values.minTorque, values.maxTorque - values.minTorque, values.deviceId))
-    ThingsboardPublisher.disconnect(theClient)
+  def publishData(mqttUrl: String, gatewayAccessToken: String, value: Value, ts: String, deviceId: String): Unit = {
+    val json = new GsonBuilder().create.toJson(value)
+    val empty: Optional[lang.Double] = Optional.ofNullable(null)
+
+    new MqttConnector(mqttUrl, gatewayAccessToken).publish(json, Optional.of(ts.toLong), empty, deviceId)
+
+    INFO(s"Published data to mqtt server: $mqttUrl with payload $value ")
   }
 
-  private def toDataJson(maxRpm: Double, minRpm: Double, delta: Double, deviceId: String): String = {
-    val mapper = new ObjectMapper()
-    val json = mapper.createObjectNode()
-    val ja = json.putArray("Tank " + deviceId)
-    var obj=ja.addObject()
-    obj.put("ts", System.currentTimeMillis())
-    obj=obj.putObject("values")
-    obj.put("TRQP2PMAX", maxRpm)
-    obj.put("TRQP2PMIN", minRpm)
-    obj.put("TRQP2P", delta)
-    mapper.writeValueAsString(json)
-  }
-
-  case class Values(maxTorque: Double, minTorque: Double, deviceId: String)
+  case class Value(TRQP2P: Double, TRQP2PMAX: Double, TRQP2PMIN: Double)
 
   case class Data(id: String, ts: String, currentTorque: Double)
 
@@ -111,6 +101,12 @@ object StickSlickTorqueCalculator {
 
   def ERROR(s: String): Unit={
     log.error(s)
+  }
+
+  private def INFO(s: String): Unit = {
+    if (log.isInfoEnabled) {
+      log.info(s)
+    }
   }
 
 }
