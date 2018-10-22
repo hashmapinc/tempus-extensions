@@ -25,9 +25,9 @@ object ThingsboardPublisher {
     client
   }
   
-  def publishTelemetryToThingsBoard(client: MqttAsyncClient, maxRpm: Double, minRpm: Double, delta: Double, deviceId: String): Unit = {
-    INFO(f"Publish telemetry for stick slick rpm data called with maxRpm=$maxRpm, minRpm=$minRpm, maxMinDelta=$delta")
-    val dataMsg = new MqttMessage(toDataJson(maxRpm, minRpm, delta, deviceId).getBytes(StandardCharsets.UTF_8))
+  def publishTelemetryToThingsBoard(client: MqttAsyncClient, data: String): Unit = {
+    INFO(f"Publish telemetry for stick slick rpm data called with data=$data")
+    val dataMsg = new MqttMessage(data.getBytes(StandardCharsets.UTF_8))
     INFO(s"Publishing to thingsboard: $dataMsg")
     client.publish(MQTT_TOPIC, dataMsg, null, getCallBack)
   }

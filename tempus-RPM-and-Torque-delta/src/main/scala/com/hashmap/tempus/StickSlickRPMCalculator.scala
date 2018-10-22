@@ -22,9 +22,6 @@ import org.eclipse.paho.client.mqttv3.MqttAsyncClient
 class StickSlickRPMCalculator
 
   object StickSlickRPMCalculator {
-    val TS="ts"
-    val MAX_RPM="maxRpm"
-    val MIN_RPM="minRpm"
 
     private val log = Logger.getLogger(StickSlickRPMCalculator.getClass)
 
@@ -85,8 +82,21 @@ class StickSlickRPMCalculator
 
     private def publishData(mqttUrl: String, gatewayAccessToken: String, values: Values) = {
       val theClient: MqttAsyncClient = ThingsboardPublisher.connectToThingsBoard(mqttUrl, gatewayAccessToken)
-      ThingsboardPublisher.publishTelemetryToThingsBoard(theClient, values.maxRpm, values.minRpm, values.maxRpm - values.minRpm, values.deviceId)
+      ThingsboardPublisher.publishTelemetryToThingsBoard(theClient, toDataJson(values.maxRpm, values.minRpm, values.maxRpm - values.minRpm, values.deviceId))
       ThingsboardPublisher.disconnect(theClient)
+    }
+
+    private def toDataJson(maxRpm: Double, minRpm: Double, delta: Double, deviceId: String): String = {
+      val mapper = new ObjectMapper()
+      val json = mapper.createObjectNode()
+      val ja = json.putArray("Tank " + deviceId)
+      var obj=ja.addObject()
+      obj.put("ts", System.currentTimeMillis())
+      obj=obj.putObject("values")
+      obj.put("RPMP2PMAX", maxRpm)
+      obj.put("RPMP2PMIN", minRpm)
+      obj.put("RPMP2P", delta)
+      mapper.writeValueAsString(json)
     }
 
     case class Values(maxRpm: Double, minRpm: Double, deviceId: String)
