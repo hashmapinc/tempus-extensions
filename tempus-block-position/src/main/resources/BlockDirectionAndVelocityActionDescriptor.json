@@ -1,0 +1,88 @@
+{
+  "schema": {
+    "title": "Block Direction Spark Job Configuration",
+    "type": "object",
+    "properties": {
+      "host": {
+        "title": "Computation Host",
+        "type": "string"
+      },
+      "port": {
+        "title": "Computation Port",
+        "type": "integer",
+        "default": 8998,
+        "minimum": 0,
+        "maximum": 65536
+      },
+      "kafkaUrl": {
+        "title": "Kafka Broker(s)",
+        "type": "string"
+      },
+      "kafkaTopic": {
+        "title": "Topic Name",
+        "type": "string"
+      },
+      "actionPath": {
+        "title": "Livy Action",
+        "type": "string"
+      },
+      "mqttUrl": {
+        "title": "MQTT Endpoint",
+        "type": "string"
+      },
+      "gatewayAccessToken": {
+        "title": "Gateway Access Token",
+        "type": "string"
+      },
+      "minComputationWindow": {
+        "title": "Minimum computation window length (in seconds)",
+        "type": "integer"
+      },
+      "maxComputationWindow": {
+        "title": "Maximum computation window length (in seconds)",
+        "type": "integer"
+      },
+      "headers": {
+        "title": "Request Headers",
+        "type": "array",
+        "items": {
+          "title": "Request Header",
+          "type": "object",
+          "properties": {
+            "key": {
+              "title": "Key",
+              "type": "string"
+            },
+            "value": {
+              "title": "Value",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "required": [
+      "kafkaUrl",
+      "kafkaTopic",
+      "actionPath",
+      "mqttUrl",
+      "gatewayAccessToken",
+      "host",
+      "port",
+      "minComputationWindow",
+      "maxComputationWindow"
+    ]
+  },
+  "form": [
+    "host",
+    "port",
+    "kafkaUrl",
+    "kafkaTopic",
+    "actionPath",
+    "mqttUrl",
+    "gatewayAccessToken",
+    "minComputationWindow",
+    "maxComputationWindow",
+    "headers"
+  ]
+}
