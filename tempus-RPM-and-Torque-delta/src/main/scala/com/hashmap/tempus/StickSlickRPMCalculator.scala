@@ -62,15 +62,10 @@ class StickSlickRPMCalculator
 
       result.foreachRDD(rdd => {
         if (!rdd.isEmpty()) {
-          maxRpm = math.max(maxRpm, rdd.max()(new Ordering[Data]() {
-            override def compare(d1: Data, d2: Data): Int =
-              Ordering[Double].compare(d1.currentRpm, d2.currentRpm)
-          }).currentRpm)
+          maxRpm = math.max(maxRpm, rdd.max()(orderFunctionBasedOnRPM).currentRpm)
 
-          minRpm = math.min(minRpm, rdd.min()(new Ordering[Data]() {
-            override def compare(d1: Data, d2: Data): Int =
-              Ordering[Double].compare(d1.currentRpm, d2.currentRpm)
-          }).currentRpm)
+          minRpm = math.min(minRpm, rdd.min()(orderFunctionBasedOnRPM).currentRpm)
+
           publishData(mqttUrl, gatewayAccessToken, Value(maxRpm - minRpm, maxRpm, minRpm), rdd.first().ts, rdd.first().id)
         }
       })
@@ -78,6 +73,13 @@ class StickSlickRPMCalculator
       ssc.start()
       ssc.awaitTermination()
 
+    }
+
+    def orderFunctionBasedOnRPM: Ordering[Data] = {
+      new Ordering[Data]() {
+        override def compare(d1: Data, d2: Data): Int =
+          Ordering[Double].compare(d1.currentRpm, d2.currentRpm)
+      }
     }
 
     def publishData(mqttUrl: String, gatewayAccessToken: String, value: Value, ts: String, deviceId: String): Unit = {

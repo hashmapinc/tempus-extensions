@@ -62,15 +62,10 @@ object StickSlickTorqueCalculator {
 
     result.foreachRDD(rdd => {
       if (!rdd.isEmpty()) {
-        maxTorque = math.max(maxTorque, rdd.max()(new Ordering[Data]() {
-          override def compare(d1: Data, d2: Data): Int =
-            Ordering[Double].compare(d1.currentTorque, d2.currentTorque)
-        }).currentTorque)
+        maxTorque = math.max(maxTorque, rdd.max()(orderFunctionBasedOnTorque).currentTorque)
 
-        minTorque = math.min(minTorque, rdd.min()(new Ordering[Data]() {
-          override def compare(d1: Data, d2: Data): Int =
-            Ordering[Double].compare(d1.currentTorque, d2.currentTorque)
-        }).currentTorque)
+        minTorque = math.min(minTorque, rdd.min()(orderFunctionBasedOnTorque).currentTorque)
+
         publishData(mqttUrl, gatewayAccessToken, Value(maxTorque - minTorque, maxTorque, minTorque), rdd.first().ts, rdd.first().id)
       }
     })
@@ -78,6 +73,13 @@ object StickSlickTorqueCalculator {
     ssc.start()
     ssc.awaitTermination()
 
+  }
+
+  def orderFunctionBasedOnTorque: Ordering[Data] = {
+    new Ordering[Data]() {
+      override def compare(d1: Data, d2: Data): Int =
+        Ordering[Double].compare(d1.currentTorque, d2.currentTorque)
+    }
   }
 
   def publishData(mqttUrl: String, gatewayAccessToken: String, value: Value, ts: String, deviceId: String): Unit = {
