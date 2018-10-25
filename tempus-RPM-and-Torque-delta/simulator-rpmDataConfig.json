@@ -1,0 +1,14 @@
+{
+  "generators":[
+    {
+      "name": "weekly-generator",
+      "type": "weekly",
+      "points": {"monday": 1, "tuesday": 10, "wednesday": 20, "friday": 40, "saturday": 50, "sunday": 70}
+    }
+  ],
+  "exported":[
+    {"name": "drillBit", "generator": "weekly-generator", "frequency": 6000 }
+  ],
+  "from": "2016-2-01 00:00:00.000",
+  "to": "2017-4-30 23:59:59.999"
+}

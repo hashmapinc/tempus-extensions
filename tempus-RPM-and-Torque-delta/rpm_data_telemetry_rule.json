@@ -1,0 +1,46 @@
+{
+  "additionalInfo": null,
+  "name": "Stick slick RPM rule",
+  "state": "ACTIVE",
+  "weight": 0,
+  "pluginToken": "kafka_plugin_token",
+  "filters": [
+    {
+      "configuration": {
+        "messageTypes": [
+          "POST_TELEMETRY"
+        ]
+      },
+      "clazz": "com.hashmapinc.server.extensions.core.filter.MsgTypeFilter",
+      "name": "Telemetry Type Filter"
+    },
+    {
+      "configuration": {
+        "deviceTypes": [
+          {
+            "name": "DrillBit"
+          }
+        ]
+      },
+      "name": "RPM calculator filter",
+      "clazz": "com.hashmapinc.server.extensions.core.filter.DeviceTypeFilter"
+    },
+    {
+      "configuration": {
+        "filter": "typeof currentRpm !== 'undefined'"
+      },
+      "name": "currentRpm Filter",
+      "clazz": "com.hashmapinc.server.extensions.core.filter.DeviceTelemetryFilter"
+    }
+  ],
+  "processor": null,
+  "action": {
+    "configuration": {
+      "sync": false,
+      "template": "{\"id\":\"$ss.get('id')\", \"ts\":\"$currentRpm.getTs()\", \"currentRpm\":$currentRpm.valueAsString}",
+      "topic": "rpmdata"
+    },
+    "clazz": "com.hashmapinc.server.extensions.kafka.action.KafkaPluginAction",
+    "name": "RPM Data Publisher"
+  }
+}
