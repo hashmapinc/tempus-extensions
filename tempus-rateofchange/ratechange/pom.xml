@@ -14,6 +14,7 @@
 		 <scala.version>2.11.8</scala.version>
 		<scala.compat.version>2.11</scala.compat.version>
 		<paho.client.version>1.1.0</paho.client.version>
+		<spark.version>2.3.2</spark.version>
 	</properties>
    
 	<repositories>
@@ -71,24 +72,24 @@
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-core_${scala.compat.version}</artifactId>
-			<version>2.1.1</version>
+			<version>${spark.version}</version>
 			<scope>provided</scope><!-- Added -->
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-sql_${scala.compat.version}</artifactId>
-			<version>2.1.1</version>
+			<version>${spark.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-streaming_${scala.compat.version}</artifactId>
-			<version>2.0.0</version>
+			<version>${spark.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-mllib_${scala.compat.version}</artifactId>
-			<version>2.2.0</version>
+			<version>${spark.version}</version>
 		</dependency> 
 		<dependency>
 			<groupId>org.eclipse.paho</groupId>
@@ -98,7 +99,7 @@
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-sql-kafka-0-10_${scala.compat.version}</artifactId>
-			<version>2.2.0</version>
+			<version>${spark.version}</version>
 		</dependency>
 <!-- should be taken out since it is supposed to be taken care of by spark-streaming-kafka for kafka 10 -->
 <!-- 
@@ -110,7 +111,7 @@
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-streaming-kafka-0-10_${scala.compat.version}</artifactId>
-			<version>2.2.0</version><!--  was 2.1.0 -->
+			<version>${spark.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.cloudera.sparkts</groupId>
@@ -222,6 +223,12 @@
 							</excludes>
 						</filter>
 					</filters>
+						<relocations>
+							<relocation>
+								<pattern>org.apache.kafka</pattern>
+								<shadedPattern>org.shaded.apache.kafka</shadedPattern>
+							</relocation>
+						</relocations>
 				</configuration>
 			</plugin>
 			<plugin>
