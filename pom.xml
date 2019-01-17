@@ -23,5 +23,6 @@
         <module>tempus-kudu-store</module>
         <module>tempus-rateofchange/ratechange</module>
         <module>tempus-WaterLevelAggregator</module>
+        <module>tempus-block-position</module>
     </modules>
 </project>

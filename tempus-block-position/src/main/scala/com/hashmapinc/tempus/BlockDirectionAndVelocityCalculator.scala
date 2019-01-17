@@ -54,11 +54,13 @@ object BlockDirectionAndVelocityCalculator {
       "enable.auto.commit" -> (false: java.lang.Boolean)
     )
 
+    val checkPointDir = System.getenv().getOrDefault("CHECKPOINT_DIR", ".")
+
     val sparkConf = new SparkConf().setAppName("BlockDirectionCalculator")
     val windowDuration = Milliseconds(800)
     val ssc = new StreamingContext(sparkConf, windowDuration)
     ssc.sparkContext.setLogLevel("WARN")
-    ssc.checkpoint(".")
+    ssc.checkpoint(checkPointDir)
 
     SparkSession.builder().config(sparkConf).getOrCreate()
 
