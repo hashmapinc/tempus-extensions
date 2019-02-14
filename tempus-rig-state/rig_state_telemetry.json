@@ -1,0 +1,46 @@
+{
+  "additionalInfo": null,
+  "name": "Rig State Telemetry",
+  "state": "ACTIVE",
+  "weight": 0,
+  "pluginToken": "kafka_plugin_token",
+  "filters": [
+    {
+      "configuration": {
+        "messageTypes": [
+          "POST_TELEMETRY"
+        ]
+      },
+      "clazz": "com.hashmapinc.server.extensions.core.filter.MsgTypeFilter",
+      "name": "Telemetry Type Filter"
+    },
+    {
+      "configuration": {
+        "deviceTypes": [
+          {
+            "name": "default"
+          }
+        ]
+      },
+      "name": "Rig State Filter",
+      "clazz": "com.hashmapinc.server.extensions.core.filter.DeviceTypeFilter"
+    },
+    {
+      "configuration": {
+        "filter": "typeof bitDepth !== 'undefined' && typeof holeDepth !== 'undefined' && typeof totalPumpOutput !== 'undefined' && typeof rotaryRpm !== 'undefined' && typeof inSlipStatus !== 'undefined' && typeof standpipePressure !== 'undefined'"
+      },
+      "name": "Non Empty Values of Rig State Filter",
+      "clazz": "com.hashmapinc.server.extensions.core.filter.DeviceTelemetryFilter"
+    }
+  ],
+  "processor": null,
+  "action": {
+    "configuration": {
+      "sync": false,
+      "template": "{\"id\": \"$deviceName\",\"ts\": \"$bitDepth.getTs()\",\"bitDepth\": $bitDepth.valueAsString,\"holeDepth\": $holeDepth.valueAsString,\"totalPumpOutput\": $totalPumpOutput.valueAsString,\"rotaryRpm\": $rotaryRpm.valueAsString,\"inSlipStatus\": $inSlipStatus.valueAsString,\"standpipePressure\": $standpipePressure.valueAsString}",
+      "topic": "rig-state-data"
+    },
+    "clazz": "com.hashmapinc.server.extensions.kafka.action.KafkaPluginAction",
+    "name": "Rig State Data Publisher"
+  }
+}

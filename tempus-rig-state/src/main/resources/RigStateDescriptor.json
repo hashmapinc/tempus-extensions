@@ -1,0 +1,76 @@
+{
+  "schema": {
+    "title": "Rig State Spark Job Configuration",
+    "type": "object",
+    "properties": {
+      "host": {
+        "title": "Computation Host",
+        "type": "string"
+      },
+      "port": {
+        "title": "Computation Port",
+        "type": "integer",
+        "default": 8998,
+        "minimum": 0,
+        "maximum": 65536
+      },
+      "kafkaUrl": {
+        "title": "Kafka Broker(s)",
+        "type": "string"
+      },
+      "kafkaTopic": {
+        "title": "Topic Name",
+        "type": "string"
+      },
+      "actionPath": {
+        "title": "Livy Action",
+        "type": "string"
+      },
+      "mqttUrl": {
+        "title": "MQTT Endpoint",
+        "type": "string"
+      },
+      "gatewayAccessToken": {
+        "title": "Gateway Access Token",
+        "type": "string"
+      },
+      "headers": {
+        "title": "Request Headers",
+        "type": "array",
+        "items": {
+          "title": "Request Header",
+          "type": "object",
+          "properties": {
+            "key": {
+              "title": "Key",
+              "type": "string"
+            },
+            "value": {
+              "title": "Value",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "required": [
+      "kafkaUrl",
+      "kafkaTopic",
+      "actionPath",
+      "mqttUrl",
+      "gatewayAccessToken",
+      "host",
+      "port"
+    ]
+  },
+  "form": [
+    "host",
+    "port",
+    "kafkaUrl",
+    "kafkaTopic",
+    "actionPath",
+    "mqttUrl",
+    "gatewayAccessToken",
+    "headers"
+  ]
+}
