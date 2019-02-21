@@ -24,5 +24,6 @@
         <module>tempus-rateofchange/ratechange</module>
         <module>tempus-WaterLevelAggregator</module>
         <module>tempus-block-position</module>
+        <module>tempus-rig-state</module>
     </modules>
 </project>

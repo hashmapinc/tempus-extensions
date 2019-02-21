@@ -28,19 +28,14 @@ object BlockDirectionAndVelocityCalculator {
 
   private val log = Logger.getLogger(BlockDirectionAndVelocityCalculator.getClass)
 
-  private var minComputationWindow: Long = _
-  private var maxComputationWindow: Long = _
-  private var gatewayAccessToken: String = _
-  private var mqttUrl: String = _
-
   def main(args: Array[String]): Unit = {
 
     assert(args.length >= 6, ERROR("Usage: mqttUrl, kafkaUrl, kafkaTopic, minComputationWindow, maxComputationWindow, gatewayAccessToken.\nTry mqttyUrl as tcp://tb:1883, kafkaUrl as kafka:9092, topic as block-position-data, minComputationWindow as 1 and maxComputationWindow as 60"))
 
-    mqttUrl = args(0)
-    minComputationWindow = args(3).trim().toInt * 1000L
-    maxComputationWindow = args(4).trim().toInt * 1000L
-    gatewayAccessToken = args(5)
+    val mqttUrl = args(0)
+    val minComputationWindow = args(3).trim().toInt * 1000L
+    val maxComputationWindow = args(4).trim().toInt * 1000L
+    val gatewayAccessToken = args(5)
 
     val kafkaTopic = args(2)
     val kafkaUrl = args(1)
@@ -73,38 +68,39 @@ object BlockDirectionAndVelocityCalculator {
 
     ssc.start()
     ssc.awaitTermination()
-  }
 
-  private def processAndUpdateState(newPositions: Seq[BlockPositionData], previousPosition: Option[BlockPositionData]): Option[BlockPositionData] = {
-    if(newPositions.nonEmpty) newPositions.foldLeft(previousPosition)(processRecord) else previousPosition
-  }
+    def processAndUpdateState(newPositions: Seq[BlockPositionData], previousPosition: Option[BlockPositionData]): Option[BlockPositionData] = {
+      if(newPositions.nonEmpty) newPositions.foldLeft(previousPosition)(processRecord) else previousPosition
+    }
 
-  private def processRecord(previousPosData: Option[BlockPositionData], currentPosData: BlockPositionData): Option[BlockPositionData] = {
+    def processRecord(previousPosData: Option[BlockPositionData], currentPosData: BlockPositionData): Option[BlockPositionData] = {
 
-    if (previousPosData.isEmpty || currentPosData.ts - previousPosData.get.ts > maxComputationWindow) {
-      Some(currentPosData)
-    } else if (currentPosData.ts - previousPosData.get.ts >= minComputationWindow && currentPosData.ts - previousPosData.get.ts <= maxComputationWindow) {
+      if (previousPosData.isEmpty || currentPosData.ts - previousPosData.get.ts > maxComputationWindow) {
+        Some(currentPosData)
+      } else if (currentPosData.ts - previousPosData.get.ts >= minComputationWindow && currentPosData.ts - previousPosData.get.ts <= maxComputationWindow) {
 
-      val (direction: Int, directionText: String) = calculateDirection(previousPosData.get, currentPosData)
-      val velocity = calculateVelocity(previousPosData.get, currentPosData)
-      val data = PublishPositionData(direction, directionText, velocity)
+        val (direction: Int, directionText: String) = calculateDirection(previousPosData.get, currentPosData)
+        val velocity = calculateVelocity(previousPosData.get, currentPosData)
+        val data = PublishPositionData(direction, directionText, velocity)
 
-      publishToTempusCloud(currentPosData, data)
+        publishToTempusCloud(currentPosData, data)
 
-      previousPosData
-    } else {
-      previousPosData
+        previousPosData
+      } else {
+        previousPosData
+      }
+    }
+
+    def publishToTempusCloud(currentPosData: BlockPositionData, data: PublishPositionData) = {
+      val json = new GsonBuilder().create.toJson(data)
+      val empty: Optional[lang.Double] = Optional.ofNullable(null)
+
+      new MqttConnector(mqttUrl, gatewayAccessToken).publish(json, Optional.of(currentPosData.ts), empty, currentPosData.id)
+
+      INFO(s"Published data to mqtt server: $mqttUrl with payload $data ")
     }
   }
 
-  private def publishToTempusCloud(currentPosData: BlockPositionData, data: PublishPositionData) = {
-    val json = new GsonBuilder().create.toJson(data)
-    val empty: Optional[lang.Double] = Optional.ofNullable(null)
-
-    new MqttConnector(mqttUrl, gatewayAccessToken).publish(json, Optional.of(currentPosData.ts), empty, currentPosData.id)
-
-    INFO(s"Published data to mqtt server: $mqttUrl with payload $data ")
-  }
 
   def calculateDirection(previousPosData: BlockPositionData, currentPosData: BlockPositionData) = {
     if (currentPosData.blockPosition - previousPosData.blockPosition > 0) (1, "up")
