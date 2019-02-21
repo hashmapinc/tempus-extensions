@@ -131,15 +131,15 @@ object RigStateCalculator {
   }
 
   private def calculatePumpStatus(currentRigStateData: RigStateData) = {
-    if (currentRigStateData.totalPumpOutput <= 100) -1
-    else if (currentRigStateData.totalPumpOutput > 100 && currentRigStateData.standpipePressure >= 500) 1
+    if (currentRigStateData.totalPumpOutput <= 0.00630902) -1
+    else if (currentRigStateData.totalPumpOutput > 0.00630902 && currentRigStateData.standpipePressure >= 3447380) 1
     else Integer.MAX_VALUE
   }
 
   private def calculateTopDriveStatus(currentRigStateData: RigStateData) = {
-    if (currentRigStateData.rotaryRpm <= 10) -1
-    else if (currentRigStateData.rotaryRpm > 30) 1
-    else if (currentRigStateData.rotaryRpm > 10 && currentRigStateData.rotaryRpm  <= 30) 0
+    if (currentRigStateData.rotaryRpm <= 1.05) -1
+    else if (currentRigStateData.rotaryRpm > 3.15) 1
+    else if (currentRigStateData.rotaryRpm > 1.05 && currentRigStateData.rotaryRpm  <= 3.15) 0
     else Integer.MAX_VALUE
   }
 
