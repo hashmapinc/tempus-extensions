@@ -23,7 +23,7 @@
     </profiles>
 
     <properties>
-        <spark-version>2.1.0</spark-version>
+        <spark-version>2.3.2</spark-version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <main.dir>${basedir}/..</main.dir>
         <thingsboard.version>1.1.0-SNAPSHOT</thingsboard.version>
@@ -79,6 +79,12 @@
                             </excludes>
                         </filter>
                     </filters>
+                    <relocations>
+                        <relocation>
+                            <pattern>org.apache.kafka</pattern>
+                            <shadedPattern>org.shaded.apache.kafka</shadedPattern>
+                        </relocation>
+                    </relocations>
                 </configuration>
                 <executions>
                     <execution>

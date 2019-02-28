@@ -14,7 +14,6 @@
         <encoding>UTF-8</encoding>
         <scala.version>2.11.8</scala.version>
         <scala.compat.version>2.11</scala.compat.version>
-        <paho.client.version>1.1.0</paho.client.version>
         <spark.version>2.3.2</spark.version>
     </properties>
     <dependencies>
