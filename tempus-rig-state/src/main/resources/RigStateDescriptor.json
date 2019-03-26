@@ -14,12 +14,36 @@
         "minimum": 0,
         "maximum": 65536
       },
+      "source": {
+        "title": "Select Source",
+        "type": "string"
+      },
       "kafkaUrl": {
         "title": "Kafka Broker(s)",
         "type": "string"
       },
       "kafkaTopic": {
         "title": "Topic Name",
+        "type": "string"
+      },
+      "kinesisAppName": {
+        "title": "Application Name",
+        "type": "string"
+      },
+      "kinesisStreamName": {
+        "title": "Kinesis Stream Name",
+        "type": "string"
+      },
+      "kinesisEndpoint": {
+        "title": "Kinesis Endpoint URL",
+        "type": "string"
+      },
+      "awsAccessKey": {
+        "title": "AWS Access Key",
+        "type": "string"
+      },
+      "awsSecretKey": {
+        "title": "AWS Secret Key",
         "type": "string"
       },
       "actionPath": {
@@ -54,8 +78,7 @@
       }
     },
     "required": [
-      "kafkaUrl",
-      "kafkaTopic",
+      "source",
       "actionPath",
       "mqttUrl",
       "gatewayAccessToken",
@@ -66,8 +89,51 @@
   "form": [
     "host",
     "port",
-    "kafkaUrl",
-    "kafkaTopic",
+    {
+      "key": "source",
+      "type": "rc-select",
+      "multiple": false,
+      "items": [
+        {
+          "value": "kafka",
+          "label": "Kafka"
+        },
+        {
+          "value": "kinesis",
+          "label": "Kinesis"
+        }
+      ]
+    },
+    {
+      "key": "kafkaUrl",
+      "condition": "model.source === 'kafka'"
+    },
+    {
+      "key": "kafkaTopic",
+      "condition": "model.source === 'kafka'"
+    },
+    {
+      "key": "kinesisAppName",
+      "condition": "model.source === 'kinesis'"
+    },
+    {
+      "key": "kinesisEndpoint",
+      "condition": "model.source === 'kinesis'"
+    },
+    {
+      "key": "kinesisStreamName",
+      "condition": "model.source === 'kinesis'"
+    },
+    {
+      "key": "awsAccessKey",
+      "condition": "model.source === 'kinesis'",
+      "type": "password"
+    },
+    {
+      "key": "awsSecretKey",
+      "condition": "model.source === 'kinesis'",
+      "type": "password"
+    },
     "actionPath",
     "mqttUrl",
     "gatewayAccessToken",

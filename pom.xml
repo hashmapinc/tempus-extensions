@@ -13,6 +13,11 @@
             <name>oss-sonatype</name>
             <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
         </repository>
+        <repository>
+            <id>palantir</id>
+            <name>palantir</name>
+            <url>https://dl.bintray.com/palantir/releases/</url>
+        </repository>
     </repositories>
 
     <properties>
@@ -20,6 +25,7 @@
     </properties>
 
     <modules>
+        <module>streams-computations</module>
         <module>tempus-kudu-store</module>
         <module>tempus-rateofchange/ratechange</module>
         <module>tempus-WaterLevelAggregator</module>
