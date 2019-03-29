@@ -38,14 +38,6 @@
         "title": "Kinesis Endpoint URL",
         "type": "string"
       },
-      "awsAccessKey": {
-        "title": "AWS Access Key",
-        "type": "string"
-      },
-      "awsSecretKey": {
-        "title": "AWS Secret Key",
-        "type": "string"
-      },
       "actionPath": {
         "title": "Livy Action",
         "type": "string"
@@ -123,16 +115,6 @@
     {
       "key": "kinesisStreamName",
       "condition": "model.source === 'kinesis'"
-    },
-    {
-      "key": "awsAccessKey",
-      "condition": "model.source === 'kinesis'",
-      "type": "password"
-    },
-    {
-      "key": "awsSecretKey",
-      "condition": "model.source === 'kinesis'",
-      "type": "password"
     },
     "actionPath",
     "mqttUrl",

@@ -1,7 +1,7 @@
 package com.hashmapinc.tempus
 
 import scala.annotation.tailrec
-import scala.collection.immutable
+import scala.collection.{immutable, mutable}
 import scala.util.Try
 
 object Computation extends App{
@@ -19,7 +19,7 @@ object Computation extends App{
         }
       }
 
-      accumulator(Map.empty[String, String], s)
+      accumulator(mutable.Map.empty[String, String], s)
     }
   }
 
@@ -31,6 +31,10 @@ object Computation extends App{
         case (Some(s: String), Some(c: String)) if s.equalsIgnoreCase("kafka") =>
           SparkKafkaApplication.run(opt, buildSparkJob(c))
         case (Some(s: String), Some(c: String)) if s.equalsIgnoreCase("kinesis") =>
+          val awsAccessKey = System.getenv().get("AWS_ACCESS_KEY_ID")
+          val awsSecretKey = System.getenv().get("AWS_SECRET_ACCESS_KEY")
+          opt.put("awsAccessKey", awsAccessKey)
+          opt.put("awsSecretKey", awsSecretKey)
           SparkKinesisApplication.run(opt, buildSparkJob(c))
         case (Some(s: String), None) => throw new IllegalArgumentException("Missing parameter computation-class")
         case _ => throw new IllegalArgumentException("Missing required parameters source and computation-class")
@@ -42,7 +46,7 @@ object Computation extends App{
     Try(Class.forName(className)).flatMap{ clazz =>
       Try{
         clazz.getConstructors
-          .filter(c => c.getParameterCount == 1 && c.getParameterTypes.contains(classOf[immutable.Map[String, Any]]))
+          .filter(c => c.getParameterCount == 1 && c.getParameterTypes.contains(classOf[mutable.Map[String, String]]))
           .map(_.newInstance(opt).asInstanceOf[Job])
           .head
       }

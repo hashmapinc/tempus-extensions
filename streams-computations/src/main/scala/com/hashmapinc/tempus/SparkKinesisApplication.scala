@@ -36,6 +36,7 @@ object SparkKinesisApplication extends StreamingContextHelper {
       .checkpointInterval(Milliseconds(5000))
       .initialPosition(KinesisInitialPositions.fromKinesisInitialPosition(InitialPositionInStream.LATEST))
       .storageLevel(StorageLevel.MEMORY_ONLY)
+      .streamingContext(ssc)
       .build()
   }
 

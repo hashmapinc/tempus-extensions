@@ -15,7 +15,7 @@ import scala.math.abs
 
 @SparkRequest(main = "com.hashmapinc.tempus.RigStateCalculator", jar = "uber-tempus-rig-state-0.0.1-SNAPSHOT.jar",
   name = "Rig State", descriptor = "RigStateDescriptor.json",
-  args = Array("mqttUrl", "kafkaUrl", "kafkaTopic", "gatewayAccessToken"), argType = ArgType.NAMED)
+  args = Array("mqttUrl", "gatewayAccessToken"), argType = ArgType.NAMED)
 class RigStateCalculationJob(val options: OptionsMap) extends Job{
 
   import RigStateCalculationJob._
