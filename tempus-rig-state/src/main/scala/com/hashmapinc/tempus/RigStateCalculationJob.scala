@@ -6,7 +6,7 @@ import java.util.Optional
 import com.google.gson.{Gson, GsonBuilder}
 import com.hashmap.tempus.annotations.SparkRequest
 import com.hashmap.tempus.models.ArgType
-import org.apache.log4j.Logger
+import org.apache.log4j.LogManager
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
 
@@ -26,14 +26,14 @@ class RigStateCalculationJob(val options: OptionsMap) extends Job{
 
     calculateRigState(ds, options)
   }
-
 }
 
 object RigStateCalculationJob{
 
-  private val log = Logger.getLogger(this.getClass)
+  private val log = LogManager.getLogger(this.getClass)
 
   def calculateRigState(ds: DStream[String], options: OptionsMap): Unit ={
+    log.info("Starting rig state data calculation for option " + options)
     ds.filter(!_.trim.isEmpty)
       .map(parseAndPairByKey)
       .updateStateByKey[RigStateData](processAndUpdateState(options) _)
@@ -64,8 +64,7 @@ object RigStateCalculationJob{
     (options.get("mqttUrl"), options.get("gatewayAccessToken")) match {
       case (Some(m: String), Some(g: String)) =>
         new MqttConnector(m, g).publish(json, Optional.of(currRSD.ts), empty, currRSD.id)
-
-      log.info(s"Published data to mqtt server: $m.value with payload $data ")
+        log.info(s"Published data to mqtt server: $m.value with payload $data ")
       case _ => throw new IllegalArgumentException("Missing MqttUrl and Gateway access token")
     }
   }
