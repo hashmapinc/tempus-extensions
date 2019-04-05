@@ -9,7 +9,6 @@ import org.apache.spark.streaming.kinesis.KinesisInitialPositions.Latest
 import org.apache.spark.streaming.kinesis.{KinesisInputDStream, SparkAWSCredentials}
 import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 
-import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 object SparkKinesisApplication extends StreamingContextHelper {
@@ -28,10 +27,9 @@ object SparkKinesisApplication extends StreamingContextHelper {
   private def buildKinesisStream(options: OptionsMap, ssc: StreamingContext) = {
     validateRequiredArguments(options)
 
-    val endpoint = options("kinesisEndpoint")
-    val region = getRegionNameByEndpoint(endpoint)
+    val region = options("kinesisRegion")
+    val endpoint = getEndpoint(region)
     val streamName = options("kinesisStreamName")
-    val appName = options("kinesisAppName")
 
     val kinesisStreams = (0 until getNumberOfShards(endpoint, region, streamName)).map {
       _ =>
@@ -41,7 +39,7 @@ object SparkKinesisApplication extends StreamingContextHelper {
           .endpointUrl(endpoint)
           .regionName(region)
           .initialPosition(new Latest())
-          .checkpointAppName(appName)
+          .checkpointAppName(streamName)
           .checkpointInterval(Milliseconds(5000))
           .storageLevel(StorageLevel.MEMORY_ONLY)
           .build()
@@ -68,22 +66,16 @@ object SparkKinesisApplication extends StreamingContextHelper {
   }
 
   private def validateRequiredArguments(options: OptionsMap): OptionsMap ={
-    List(options.get("kinesisAppName"), options.get("kinesisStreamName"),
-      options.get("kinesisEndpoint"), options.get("awsAccessKey"),
+    List(options.get("kinesisStreamName"),
+      options.get("kinesisRegion"), options.get("awsAccessKey"),
       options.get("awsSecretKey")).flatten match {
       case Nil => throw new IllegalArgumentException("Missing all required arguments")
-      case l: List[Any] if l.length < 5 => throw new Exception("Required parameters are missing")
+      case l: List[Any] if l.length < 4 => throw new Exception("Required parameters are missing")
       case _ => options
     }
   }
 
-  private def getRegionNameByEndpoint(endpoint: String): String = {
-    val uri = new java.net.URI(endpoint)
-    RegionUtils.getRegionsForService(AmazonKinesis.ENDPOINT_PREFIX)
-      .asScala
-      .find(_.getAvailableEndpoints.asScala.toSeq.contains(uri.getHost))
-      .map(_.getName)
-      .getOrElse(
-        throw new IllegalArgumentException(s"Could not resolve region for endpoint: $endpoint"))
+  private def getEndpoint(region: String): String = {
+    RegionUtils.getRegion(region).getServiceEndpoint(AmazonKinesis.ENDPOINT_PREFIX)
   }
 }

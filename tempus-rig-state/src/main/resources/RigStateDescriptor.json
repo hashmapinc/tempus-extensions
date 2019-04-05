@@ -26,16 +26,12 @@
         "title": "Topic Name",
         "type": "string"
       },
-      "kinesisAppName": {
-        "title": "Application Name",
-        "type": "string"
-      },
       "kinesisStreamName": {
         "title": "Kinesis Stream Name",
         "type": "string"
       },
-      "kinesisEndpoint": {
-        "title": "Kinesis Endpoint URL",
+      "kinesisRegion": {
+        "title": "Kinesis Region",
         "type": "string"
       },
       "actionPath": {
@@ -105,11 +101,7 @@
       "condition": "model.source === 'kafka'"
     },
     {
-      "key": "kinesisAppName",
-      "condition": "model.source === 'kinesis'"
-    },
-    {
-      "key": "kinesisEndpoint",
+      "key": "kinesisRegion",
       "condition": "model.source === 'kinesis'"
     },
     {

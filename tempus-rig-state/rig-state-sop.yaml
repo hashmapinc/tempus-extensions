@@ -20,10 +20,8 @@ spec:
     - "kinesis"
     - "--kinesisStreamName"
     - "lambda-stream"
-    - "--kinesisAppName"
-    - "rig-state-stream-app"
-    - "--kinesisEndpoint"
-    - "https://kinesis.us-east-2.amazonaws.com"
+    - "--kinesisRegion"
+    - "us-east-2"
   restartPolicy:
     type: Never
   hadoopConf:
