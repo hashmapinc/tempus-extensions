@@ -14,12 +14,24 @@
         "minimum": 0,
         "maximum": 65536
       },
+      "source": {
+        "title": "Select Source",
+        "type": "string"
+      },
       "kafkaUrl": {
         "title": "Kafka Broker(s)",
         "type": "string"
       },
       "kafkaTopic": {
         "title": "Topic Name",
+        "type": "string"
+      },
+      "kinesisStreamName": {
+        "title": "Kinesis Stream Name",
+        "type": "string"
+      },
+      "kinesisRegion": {
+        "title": "Kinesis Region",
         "type": "string"
       },
       "actionPath": {
@@ -54,8 +66,7 @@
       }
     },
     "required": [
-      "kafkaUrl",
-      "kafkaTopic",
+      "source",
       "actionPath",
       "mqttUrl",
       "gatewayAccessToken",
@@ -66,8 +77,37 @@
   "form": [
     "host",
     "port",
-    "kafkaUrl",
-    "kafkaTopic",
+    {
+      "key": "source",
+      "type": "rc-select",
+      "multiple": false,
+      "items": [
+        {
+          "value": "kafka",
+          "label": "Kafka"
+        },
+        {
+          "value": "kinesis",
+          "label": "Kinesis"
+        }
+      ]
+    },
+    {
+      "key": "kafkaUrl",
+      "condition": "model.source === 'kafka'"
+    },
+    {
+      "key": "kafkaTopic",
+      "condition": "model.source === 'kafka'"
+    },
+    {
+      "key": "kinesisRegion",
+      "condition": "model.source === 'kinesis'"
+    },
+    {
+      "key": "kinesisStreamName",
+      "condition": "model.source === 'kinesis'"
+    },
     "actionPath",
     "mqttUrl",
     "gatewayAccessToken",

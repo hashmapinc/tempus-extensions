@@ -1,0 +1,54 @@
+apiVersion: "sparkoperator.k8s.io/v1beta1"
+kind: SparkApplication
+metadata:
+  name: rig-state-calculator
+spec:
+  type: Scala
+  mode: cluster
+  image: "hashmapinc/spark-aws:spark-2.4.0_hadoop-2.7.3"
+  imagePullPolicy: Always
+  mainClass: com.hashmapinc.tempus.Computation
+  mainApplicationFile: "http://s3fs/uber-tempus-rig-state-0.0.1-SNAPSHOT.jar"
+  arguments:
+    - "--mqttUrl" 
+    - "tcp://tempus.hashmapinc.com:1883"
+    - "--gatewayAccessToken"
+    - "DEVICE_GATEWAY_TOKEN"
+    - "--computation-class"
+    - "com.hashmapinc.tempus.RigStateCalculationJob"
+    - "--source"
+    - "kinesis"
+    - "--kinesisStreamName"
+    - "lambda-stream"
+    - "--kinesisRegion"
+    - "us-east-2"
+  restartPolicy:
+    type: Never
+  hadoopConf:
+    fs.s3a.access.key: "${aws_access_key}"   
+    fs.s3a.secret.key: "${aws_secret_key}"     
+    fs.s3a.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+  driver:
+    labels:
+      version: 2.4.0
+    serviceAccount: spark-operator-spark
+    envVars:
+      CHECKPOINT_DIR: "s3n://tempus-spark-jars/checkpoint"
+    envSecretKeyRefs:
+      AWS_ACCESS_KEY_ID:
+        name: aws
+        key: accesskey
+      AWS_SECRET_ACCESS_KEY:
+        name: aws
+        key: secretkey       
+  executor:
+    instances: 3
+    labels:
+      version: 2.4.0  
+    envSecretKeyRefs:
+      AWS_ACCESS_KEY_ID:
+        name: aws
+        key: accesskey
+      AWS_SECRET_ACCESS_KEY:
+        name: aws
+        key: secretkey       
