@@ -1,0 +1,106 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.hashmapinc.tempus</groupId>
+	<artifactId>hbase-compaction</artifactId>
+	<packaging>pom</packaging>
+	<version>1.0.0</version>
+	<name>HBase Compaction</name>
+
+	<properties>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+		<encoding>UTF-8</encoding>
+		<jdk.version>1.8</jdk.version>
+		<requiredMavenVersion>[2.1,)</requiredMavenVersion>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.build.outputEncoding>UTF-8</project.build.outputEncoding>
+		<java.home>/usr/jdk64/jdk1.8.0_60</java.home>
+		<hdp.version>2.5.0.0-1245</hdp.version>
+		<phoenix.hortonworks.version>4.7.0.${hdp.version}</phoenix.hortonworks.version>
+		<hbase.hortonworks.version>1.1.2.${hdp.version}</hbase.hortonworks.version>
+		<zookeeper.hortonworks.version>3.4.6.${hdp.version}</zookeeper.hortonworks.version>
+		<hadoop.hortonworks.version>2.7.3.${hdp.version}</hadoop.hortonworks.version>
+		<maven-compiler-plugin.version>3.0</maven-compiler-plugin.version>
+		<maven-shade-plugin.version>2.3</maven-shade-plugin.version>
+	</properties>
+
+	<modules>
+		<module>CompactionClient</module>
+		<module>CompactionService</module>
+        <module>PhoenixUDFs</module>
+		<!-- Shared Modules -->
+		<module>Utils</module>
+		<module>Asset-Tag-Management</module>
+		<module>PhoenixDBUtils</module>
+	</modules>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven-compiler-plugin.version}</version>
+				<configuration>
+					<source>${jdk.version}</source>
+					<target>${jdk.version}</target>
+					<showDeprecation>true</showDeprecation>
+					<showWarnings>true</showWarnings>
+					<compilerArgument>-Xlint:unchecked</compilerArgument>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+	<repositories>
+		<repository>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+				<updatePolicy>never</updatePolicy>
+				<checksumPolicy>fail</checksumPolicy>
+			</snapshots>
+			<id>HDPReleases</id>
+			<name>HDP Releases</name>
+			<url>http://repo.hortonworks.com/content/repositories/releases/</url>
+			<layout>default</layout>
+		</repository>
+		<repository>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+				<updatePolicy>never</updatePolicy>
+				<checksumPolicy>fail</checksumPolicy>
+			</snapshots>
+			<id>HDPPublic</id>
+			<name>HDP Public</name>
+			<url>http://repo.hortonworks.com/content/groups/public/</url>
+			<layout>default</layout>
+		</repository>
+		<repository>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+				<updatePolicy>never</updatePolicy>
+				<checksumPolicy>fail</checksumPolicy>
+			</snapshots>
+			<id>HDPPublicAlt</id>
+			<name>HDP Public Alt</name>
+			<url>http://nexus-private.hortonworks.com/nexus/content/groups/public/</url>
+			<layout>default</layout>
+		</repository>
+		
+	</repositories>
+</project>
